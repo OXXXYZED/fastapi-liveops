@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
@@ -82,8 +82,11 @@ async def write(
                     "updated_at": func.now(),
                 },
             )
-        row = await db.scalar(
-            final.returning(CloudSave), execution_options={"populate_existing": True}
+        row = cast(
+            CloudSave | None,
+            await db.scalar(
+                final.returning(CloudSave), execution_options={"populate_existing": True}
+            ),
         )
 
     if row is None:
