@@ -29,7 +29,7 @@ try {
   step("login");
   await page.getByLabel("Admin token").fill(token);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByRole("heading", { name: "Projects" }).waitFor();
+  await page.getByRole("heading", { name: "Projects", exact: true }).waitFor();
 
   step("create project");
   await page.getByRole("button", { name: "New project" }).first().click();
@@ -160,7 +160,7 @@ try {
   await page.getByLabel("Email", { exact: true }).fill(`viewer-${slug}@example.com`);
   await page.getByLabel("Password").fill("viewer-password-1");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByRole("heading", { name: "Projects" }).waitFor();
+  await page.getByRole("heading", { name: "Projects", exact: true }).waitFor();
   if (!(await page.getByRole("button", { name: "New project" }).first().isDisabled()))
     throw new Error("viewer can create projects");
   if (await page.getByRole("link", { name: "Admin users" }).count()) throw new Error("viewer sees users");
