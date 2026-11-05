@@ -2,7 +2,7 @@
 
 Self-hosted LiveOps backend for games — an open-source alternative to hosted game services.
 
-**Status:** early development (stage 4 — cloud save).
+**Status:** early development (stage 5 — Unity SDK).
 
 ## Planned features
 
@@ -88,6 +88,11 @@ curl -XPUT localhost:8000/admin/environments/$ENV_ID/flags/new_shop -H 'Authoriz
 - Limits: `LIVEOPS_CLOUD_SAVE_MAX_BYTES` (256 KiB, encoded JSON) → `413`;
   `LIVEOPS_CLOUD_SAVE_MAX_SLOTS` (10) → `409`. Put a body-size limit on your reverse proxy too.
 - Admin read/delete for support: `/admin/environments/{env}/players/{player}/saves`.
+
+## Client SDKs
+
+- **Unity** — [`sdk/unity/com.oxxxyzed.liveops`](sdk/unity/com.oxxxyzed.liveops/README.md), install via git URL
+  `https://github.com/OXXXYZED/fastapi-liveops.git?path=sdk/unity/com.oxxxyzed.liveops`.
 
 ## Configuration
 

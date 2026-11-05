@@ -27,3 +27,37 @@ jobs:
       - run: uv run mypy app tests
       - run: uv run alembic upgrade head
       - run: uv run pytest -q
+
+  sdk-unity:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: {POSTGRES_USER: liveops, POSTGRES_PASSWORD: liveops, POSTGRES_DB: liveops}
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U liveops" --health-interval 2s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: {python-version: "3.13"}
+      - uses: actions/setup-dotnet@v4
+        with: {dotnet-version: "8.0.x"}
+      - name: Check Unity .meta files are up to date
+        run: python3 scripts/gen_unity_meta.py && git diff --exit-code && test -z "$(git status --porcelain)"
+      - name: Start server
+        working-directory: server
+        run: |
+          uv sync --frozen
+          uv run alembic upgrade head
+          nohup uv run uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
+          for i in $(seq 60); do curl -sf localhost:8000/healthz && break; sleep 1; done
+      - name: Test SDK (unit + integration)
+        run: |
+          export LIVEOPS_TEST_API_KEY=$(scripts/seed_integration.sh http://localhost:8000)
+          LIVEOPS_TEST_URL=http://localhost:8000 dotnet test sdk/unity/Tests.DotNet
+      - if: failure()
+        run: cat /tmp/server.log

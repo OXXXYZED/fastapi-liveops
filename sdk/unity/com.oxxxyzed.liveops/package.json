@@ -1,0 +1,12 @@
+{
+  "name": "com.oxxxyzed.liveops",
+  "version": "0.1.0",
+  "displayName": "LiveOps SDK",
+  "description": "Client SDK for fastapi-liveops: player auth, remote config, feature flags, leaderboards, cloud save.",
+  "unity": "2021.3",
+  "license": "MIT",
+  "author": { "name": "OXXXYZED", "url": "https://github.com/OXXXYZED/fastapi-liveops" },
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}

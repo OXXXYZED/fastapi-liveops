@@ -1,0 +1,92 @@
+using System;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace LiveOps
+{
+    public sealed class LoginResult
+    {
+        [JsonProperty("player_id")] public string PlayerId;
+        [JsonProperty("access_token")] public string AccessToken;
+        [JsonProperty("expires_in")] public int ExpiresIn;
+        [JsonProperty("created")] public bool Created;
+    }
+
+    public sealed class RemoteConfig
+    {
+        [JsonProperty("version")] public int Version;
+        [JsonProperty("values")] public JObject Values = new JObject();
+        [JsonProperty("flags")] public Dictionary<string, bool> Flags = new Dictionary<string, bool>();
+
+        public static readonly RemoteConfig Empty = new RemoteConfig();
+
+        public bool IsEnabled(string flag) => Flags.TryGetValue(flag, out var on) && on;
+
+        /// <summary>
+        /// Reads a value by key; dots address nested objects ("shop.discount").
+        /// Returns <paramref name="fallback"/> if missing or not convertible.
+        /// </summary>
+        public T Get<T>(string key, T fallback = default)
+        {
+            JToken token = Values;
+            foreach (var part in key.Split('.'))
+            {
+                if (!(token is JObject obj) || !obj.TryGetValue(part, out token))
+                    return fallback;
+            }
+            try
+            {
+                return token.Type == JTokenType.Null ? fallback : token.ToObject<T>();
+            }
+            catch (Exception e) when (e is JsonException || e is ArgumentException || e is FormatException || e is InvalidCastException)
+            {
+                return fallback;
+            }
+        }
+    }
+
+    public sealed class LeaderboardEntry
+    {
+        [JsonProperty("rank")] public int Rank;
+        [JsonProperty("player_id")] public string PlayerId;
+        [JsonProperty("score")] public long Score;
+    }
+
+    public sealed class LeaderboardPage
+    {
+        [JsonProperty("key")] public string Key;
+        [JsonProperty("season")] public string Season;
+        [JsonProperty("total")] public int Total;
+        [JsonProperty("entries")] public List<LeaderboardEntry> Entries = new List<LeaderboardEntry>();
+    }
+
+    public sealed class MyRank
+    {
+        [JsonProperty("key")] public string Key;
+        [JsonProperty("season")] public string Season;
+        [JsonProperty("total")] public int Total;
+        [JsonProperty("me")] public LeaderboardEntry Me;
+        [JsonProperty("around")] public List<LeaderboardEntry> Around = new List<LeaderboardEntry>();
+    }
+
+    public sealed class ScoreResult
+    {
+        [JsonProperty("season")] public string Season;
+        [JsonProperty("score")] public long Score;
+        [JsonProperty("rank")] public int Rank;
+    }
+
+    public class SaveInfo
+    {
+        [JsonProperty("slot")] public string Slot;
+        [JsonProperty("version")] public int Version;
+        [JsonProperty("size_bytes")] public int SizeBytes;
+        [JsonProperty("updated_at")] public DateTime UpdatedAt;
+    }
+
+    public sealed class SaveData<T> : SaveInfo
+    {
+        [JsonProperty("data")] public T Data;
+    }
+}
