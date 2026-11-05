@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
-from app.api import admin, health, players
+from app.api import admin, config_admin, config_client, health, players
 from app.core.config import Settings, get_settings
 from app.db.session import make_engine, make_sessionmaker
 
@@ -36,6 +36,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(admin.router)
     app.include_router(players.router)
+    app.include_router(config_admin.router)
+    app.include_router(config_client.router)
     return app
 
 

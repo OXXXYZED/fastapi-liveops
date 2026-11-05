@@ -2,7 +2,7 @@
 
 Self-hosted LiveOps backend for games — an open-source alternative to hosted game services.
 
-**Status:** early development (stage 1 — core: projects, API keys, player auth).
+**Status:** early development (stage 2 — remote config & feature flags).
 
 ## Planned features
 
@@ -43,6 +43,25 @@ curl -XPOST localhost:8000/admin/environments/$ENV_ID/api-keys -H 'Authorization
 # log a player in
 curl -XPOST localhost:8000/v1/auth/anonymous -H "X-Api-Key: $KEY" \
   -H 'Content-Type: application/json' -d '{"device_id":"my-device-0001"}'
+```
+
+## Remote config & feature flags
+
+- **Config** is an append-only list of versions per environment; the highest version is live.
+  Publish with optional `base_version` for optimistic concurrency; rollback publishes a copy of an old version.
+- **Flags** have `enabled`, `rollout_percent` (0–100) and `rules` (all must match).
+  Operators: `eq`, `neq`, `in`, `not_in`, `gte`, `lt`, `semver_gte`, `semver_lt`.
+  Rollout bucketing is `sha256("{flag_key}:{player_id}") % 100` — stable per player, independent across flags.
+- Clients call `GET /v1/config?platform=ios&app_version=1.4.0` with the player JWT and get
+  `{version, values, flags: {key: bool}}`. Responses carry an `ETag`; send `If-None-Match` to get `304`.
+- Snapshots are cached in Redis (5 min TTL) and invalidated on every admin write.
+
+```bash
+curl -XPOST localhost:8000/admin/environments/$ENV_ID/config -H 'Authorization: Bearer dev-admin-token' \
+  -H 'Content-Type: application/json' -d '{"values":{"lives":3,"shop":{"discount":0.2}}}'
+curl -XPUT localhost:8000/admin/environments/$ENV_ID/flags/new_shop -H 'Authorization: Bearer dev-admin-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"enabled":true,"rollout_percent":25,"rules":[{"attribute":"app_version","op":"semver_gte","value":"1.4.0"}]}'
 ```
 
 ## Configuration

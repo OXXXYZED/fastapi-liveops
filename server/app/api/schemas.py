@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models import ApiKeyKind
+from app.services.flags import Condition
 
 SLUG = r"^[a-z0-9][a-z0-9-]{0,63}$"
 
@@ -73,3 +75,53 @@ class PlayerOut(ORM):
     environment_id: uuid.UUID
     created_at: datetime
     last_seen_at: datetime
+
+
+# --- Remote config & feature flags ---
+
+FLAG_KEY = r"^[a-z0-9][a-z0-9_.-]{0,127}$"
+
+
+class ConfigPublish(BaseModel):
+    values: dict[str, Any]
+    note: str | None = Field(default=None, max_length=500)
+    base_version: int | None = Field(
+        default=None,
+        description="If set, publish fails with 409 unless the live version equals this.",
+    )
+
+
+class ConfigVersionOut(ORM):
+    version: int
+    values: dict[str, Any]
+    note: str | None
+    created_at: datetime
+
+
+class ConfigVersionSummary(ORM):
+    version: int
+    note: str | None
+    created_at: datetime
+
+
+class FlagUpsert(BaseModel):
+    description: str | None = Field(default=None, max_length=500)
+    enabled: bool = False
+    rollout_percent: int = Field(default=100, ge=0, le=100)
+    rules: list[Condition] = Field(default_factory=list, max_length=20)
+
+
+class FlagOut(ORM):
+    key: str
+    description: str | None
+    enabled: bool
+    rollout_percent: int
+    rules: list[Condition]
+    created_at: datetime
+    updated_at: datetime
+
+
+class ClientConfigOut(BaseModel):
+    version: int
+    values: dict[str, Any]
+    flags: dict[str, bool]
