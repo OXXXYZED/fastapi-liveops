@@ -4,10 +4,12 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     func,
@@ -54,6 +56,15 @@ class Leaderboard(TimestampMixin, Base):
     # Server-side bounds for submitted scores (basic anti-cheat).
     min_score: Mapped[int | None] = mapped_column(BigInteger)
     max_score: Mapped[int | None] = mapped_column(BigInteger)
+    # Per-player submit rate limit for this board (anti-spam / anti-bot).
+    max_submits_per_minute: Mapped[int | None] = mapped_column(Integer)
+    # Synchronous validation hook: called before a score is accepted. See services.score_validation.
+    validation_url: Mapped[str | None] = mapped_column(String(2000))
+    validation_secret: Mapped[str | None] = mapped_column(String(128))
+    # If the validator is unreachable/errors: accept (True) or reject (False) the score.
+    validation_fail_open: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
 
 
 class LeaderboardScore(Base):

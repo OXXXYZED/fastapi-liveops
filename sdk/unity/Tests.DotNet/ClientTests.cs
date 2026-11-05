@@ -167,6 +167,11 @@ namespace LiveOps.Tests
             Assert.Equal(500, s.Score);
             Assert.Equal("{\"score\":500}", t.Requests[1].Body);
 
+            t.Enqueue(200, "{\"season\":\"all\",\"score\":7,\"rank\":1}");
+            await c.Leaderboards.SubmitScoreAsync("main", 7, new Dictionary<string, object> { ["match"] = "m1" });
+            Assert.Equal("{\"score\":7,\"metadata\":{\"match\":\"m1\"}}", t.Requests[2].Body);
+            t.Requests.RemoveAt(2);
+
             t.Enqueue(200, "{\"key\":\"main\",\"season\":\"2026-W01\",\"total\":1,\"entries\":[{\"rank\":1,\"player_id\":\"p1\",\"score\":500}]}");
             var page = await c.Leaderboards.GetTopAsync("main", limit: 5, offset: 10, season: "previous");
             Assert.Equal("https://api.test/v1/leaderboards/main?limit=5&offset=10&season=previous", t.Requests[2].Url);

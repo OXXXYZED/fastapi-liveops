@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, unwrap, type Leaderboard, type Schemas } from "../api/client";
 import { useEnvContext } from "../api/hooks";
-import { Button, Empty, ErrorBox, Field, Loading, Modal, confirmAction, useToast } from "../components/ui";
+import { Button, CopyButton, Empty, ErrorBox, Field, Loading, Modal, confirmAction, useToast } from "../components/ui";
 import { EnvHead } from "./EnvHead";
 
 export function LeaderboardsPage() {
@@ -54,6 +54,7 @@ export function LeaderboardsPage() {
 function BoardView({ envId, board, onDeleted }: { envId: string; board: Leaderboard; onDeleted: () => void }) {
   const [season, setSeason] = useState("current");
   const [offset, setOffset] = useState(0);
+  const [antiCheat, setAntiCheat] = useState(false);
   const limit = 50;
   const qc = useQueryClient();
   const toast = useToast();
@@ -104,6 +105,8 @@ function BoardView({ envId, board, onDeleted }: { envId: string; board: Leaderbo
             {(board.min_score !== null || board.max_score !== null) && (
               <span className="badge">range {board.min_score ?? "−∞"} … {board.max_score ?? "∞"}</span>
             )}
+            {board.max_submits_per_minute && <span className="badge">≤ {board.max_submits_per_minute} submits/min</span>}
+            {board.validation_url && <span className="badge badge-accent">validated{board.validation_fail_open ? " (fail-open)" : ""}</span>}
           </div>
         </div>
         <div className="row">
@@ -113,6 +116,7 @@ function BoardView({ envId, board, onDeleted }: { envId: string; board: Leaderbo
               <option value="previous">Previous season</option>
             </select>
           )}
+          <Button size="sm" onClick={() => setAntiCheat(true)}>Anti-cheat</Button>
           <Button write
             variant="danger"
             size="sm"
@@ -171,7 +175,93 @@ function BoardView({ envId, board, onDeleted }: { envId: string; board: Leaderbo
           </div>
         </>
       )}
+      {antiCheat && <AntiCheatModal envId={envId} board={board} onClose={() => setAntiCheat(false)} />}
     </div>
+  );
+}
+
+function AntiCheatModal({ envId, board, onClose }: { envId: string; board: Leaderboard; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [form, setForm] = useState({
+    min: board.min_score?.toString() ?? "",
+    max: board.max_score?.toString() ?? "",
+    rate: board.max_submits_per_minute?.toString() ?? "",
+    url: board.validation_url ?? "",
+    failOpen: board.validation_fail_open,
+  });
+  const [secret, setSecret] = useState<string | null>(null);
+  const set = (p: Partial<typeof form>) => setForm((f) => ({ ...f, ...p }));
+  const num = (s: string) => (s.trim() === "" ? null : Number(s));
+  const path = { environment_id: envId, key: board.key };
+  const save = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.PATCH("/admin/environments/{environment_id}/leaderboards/{key}", {
+          params: { path },
+          body: {
+            min_score: num(form.min),
+            max_score: num(form.max),
+            max_submits_per_minute: num(form.rate),
+            validation_url: form.url.trim() || null,
+            validation_fail_open: form.failOpen,
+          },
+        }),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["boards", envId] });
+      toast("Anti-cheat settings saved");
+      onClose();
+    },
+  });
+  const rotate = useMutation({
+    mutationFn: () => unwrap(api.POST("/admin/environments/{environment_id}/leaderboards/{key}/validation-secret", { params: { path } })),
+    onSuccess: (r) => setSecret(r.secret),
+    onError: (e) => toast(e.message, true),
+  });
+  const ints = [form.min, form.max, form.rate].every((s) => s.trim() === "" || Number.isInteger(Number(s)));
+  const urlOk = form.url.trim() === "" || /^https?:\/\/\S+/.test(form.url.trim());
+  return (
+    <Modal
+      title={`Anti-cheat: ${board.name}`}
+      onClose={onClose}
+      footer={<><Button onClick={onClose}>Cancel</Button><Button write variant="primary" busy={save.isPending} disabled={!ints || !urlOk} onClick={() => save.mutate()}>Save</Button></>}
+    >
+      <ErrorBox error={save.error} />
+      <div className="grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+        <Field label="Min score"><input className="input" inputMode="numeric" value={form.min} onChange={(e) => set({ min: e.target.value })} /></Field>
+        <Field label="Max score"><input className="input" inputMode="numeric" value={form.max} onChange={(e) => set({ max: e.target.value })} /></Field>
+        <Field label="Submits / min / player"><input className="input" inputMode="numeric" value={form.rate} onChange={(e) => set({ rate: e.target.value })} /></Field>
+      </div>
+      <Field
+        label="Validation hook URL"
+        hint={<>Called before each score is stored with a signed JSON body; reply <code>{"{\"allow\": true}"}</code>, optionally with an adjusted <code>score</code>, or <code>{"{\"allow\": false, \"reason\": …}"}</code>.</>}
+        error={urlOk ? null : "Must start with http:// or https://"}
+      >
+        <input className="input mono" placeholder="https://anticheat.example.com/validate" value={form.url} onChange={(e) => set({ url: e.target.value })} />
+      </Field>
+      <label className="switch">
+        <input type="checkbox" checked={form.failOpen} onChange={(e) => set({ failOpen: e.target.checked })} />
+        <span>Accept scores when the validator is down (fail-open)</span>
+      </label>
+      {board.validation_url && (
+        <div className="stack" style={{ gap: 8 }}>
+          {secret ? (
+            <>
+              <div className="alert alert-warn">New signing secret — update your validator now; the old one no longer works.</div>
+              <div className="secret">{secret}</div>
+              <div><CopyButton text={secret} /></div>
+            </>
+          ) : (
+            <div>
+              <Button write size="sm" busy={rotate.isPending} onClick={() => confirmAction("Generate a new signing secret? The current one stops working immediately.") && rotate.mutate()}>
+                Rotate signing secret
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -193,7 +283,7 @@ function CreateBoard({ envId, onClose, onCreated }: { envId: string; onClose: ()
       unwrap(
         api.POST("/admin/environments/{environment_id}/leaderboards", {
           params: { path: { environment_id: envId } },
-          body: { ...form, min_score: num(form.min_score), max_score: num(form.max_score) },
+          body: { ...form, min_score: num(form.min_score), max_score: num(form.max_score), validation_fail_open: false },
         }),
       ),
     onSuccess: (b) => {

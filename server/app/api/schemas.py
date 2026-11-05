@@ -150,12 +150,18 @@ class LeaderboardCreate(BaseModel):
     reset_schedule: ResetSchedule = ResetSchedule.never
     min_score: int | None = None
     max_score: int | None = None
+    max_submits_per_minute: int | None = Field(default=None, ge=1, le=600)
+    validation_url: str | None = Field(default=None, pattern=r"^https?://", max_length=2000)
+    validation_fail_open: bool = False
 
 
 class LeaderboardUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     min_score: int | None = None
     max_score: int | None = None
+    max_submits_per_minute: int | None = Field(default=None, ge=1, le=600)
+    validation_url: str | None = Field(default=None, pattern=r"^https?://", max_length=2000)
+    validation_fail_open: bool | None = None
 
 
 class LeaderboardOut(ORM):
@@ -167,11 +173,21 @@ class LeaderboardOut(ORM):
     reset_schedule: ResetSchedule
     min_score: int | None
     max_score: int | None
+    max_submits_per_minute: int | None
+    validation_url: str | None
+    validation_fail_open: bool
     created_at: datetime
+
+
+class ValidationSecret(BaseModel):
+    secret: str
 
 
 class ScoreSubmit(BaseModel):
     score: int = Field(ge=-(2**53), le=2**53)
+    metadata: dict[str, Any] | None = Field(
+        default=None, description="Forwarded to the validation hook (e.g. match id, duration)"
+    )
 
 
 class ScoreSubmitted(BaseModel):

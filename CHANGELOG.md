@@ -12,7 +12,9 @@
 - Scheduled config publishes via an in-process background worker (SKIP LOCKED, multi-replica safe).
 - Signed webhooks (transactional outbox, retries with backoff) for player, experiment, config and
   leaderboard events; `POST /v1/events` for client analytics events.
-- SDKs: `GetVariant`, `Track`.
+- Leaderboard anti-cheat: synchronous signed validation hooks (allow / adjust / reject, fail-open or
+  fail-closed), per-player submit rate limits, score `metadata`.
+- SDKs: `GetVariant`, `Track`, score metadata.
 - Fixed: config editor lost in-progress edits when the live config refreshed after a publish.
 - SDKs: `LoginWithProvider`, `LinkIdentity` / `UnlinkIdentity`, `GetProfile`, `SetDisplayName`.
 

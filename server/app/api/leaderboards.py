@@ -1,7 +1,9 @@
+import json
+import secrets
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -16,9 +18,13 @@ from app.api.schemas import (
     MyRank,
     ScoreSubmit,
     ScoreSubmitted,
+    ValidationSecret,
 )
+from app.core import rate_limit
 from app.models import Environment, Leaderboard, Player
 from app.services import leaderboards as lb
+from app.services import score_validation
+from app.services.score_validation import MAX_METADATA_BYTES
 
 admin = APIRouter(
     prefix="/admin/environments/{environment_id}/leaderboards",
@@ -56,6 +62,12 @@ def _season(board: Leaderboard, season: str) -> str:
     return season
 
 
+def _in_bounds(board: Leaderboard, score: int) -> bool:
+    return (board.min_score is None or score >= board.min_score) and (
+        board.max_score is None or score <= board.max_score
+    )
+
+
 def _validate_bounds(lo: int | None, hi: int | None) -> None:
     if lo is not None and hi is not None and lo > hi:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "min_score > max_score")
@@ -75,6 +87,10 @@ async def _named(db: DbDep, entries: list[lb.Entry]) -> list[EntryOut]:
     ]
 
 
+def _new_secret() -> str:
+    return "vsec_" + secrets.token_urlsafe(32)
+
+
 # --- admin ---
 
 
@@ -86,6 +102,8 @@ async def create_board(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "environment not found")
     _validate_bounds(body.min_score, body.max_score)
     board = Leaderboard(environment_id=environment_id, **body.model_dump())
+    if board.validation_url:
+        board.validation_secret = _new_secret()
     db.add(board)
     try:
         await db.commit()
@@ -117,8 +135,21 @@ async def update_board(
     )
     for k, v in patch.items():
         setattr(board, k, v)
+    if board.validation_url and not board.validation_secret:
+        board.validation_secret = _new_secret()
     await db.commit()
     return board
+
+
+@admin.post("/{key}/validation-secret", response_model=ValidationSecret)
+async def rotate_validation_secret(
+    environment_id: uuid.UUID, key: BoardKey, db: DbDep
+) -> ValidationSecret:
+    """Generate a new signing secret for the validation hook and return it (shown only here)."""
+    board = await _board(db, environment_id, key)
+    board.validation_secret = _new_secret()
+    await db.commit()
+    return ValidationSecret(secret=board.validation_secret)
 
 
 @admin.delete("/{key}", status_code=status.HTTP_204_NO_CONTENT)
@@ -153,14 +184,47 @@ async def remove_score(
 
 @client.post("/{key}/scores", response_model=ScoreSubmitted)
 async def submit_score(
-    key: BoardKey, body: ScoreSubmit, claims: PlayerDep, db: DbDep, redis: RedisDep
+    key: BoardKey,
+    body: ScoreSubmit,
+    request: Request,
+    claims: PlayerDep,
+    db: DbDep,
+    redis: RedisDep,
 ) -> ScoreSubmitted:
     board = await _board(db, claims.environment_id, key)
-    if (board.min_score is not None and body.score < board.min_score) or (
-        board.max_score is not None and body.score > board.max_score
-    ):
+    if body.metadata is not None and len(json.dumps(body.metadata)) > MAX_METADATA_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "metadata too large")
+    if board.max_submits_per_minute:
+        allowed, _, retry = await rate_limit.hit(
+            redis, f"lb:{board.id}:{claims.player_id}", board.max_submits_per_minute, 60
+        )
+        if not allowed:
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                "too many score submissions for this leaderboard",
+                headers={"Retry-After": str(retry)},
+            )
+    if not _in_bounds(board, body.score):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "score out of allowed range")
-    season, stored = await lb.submit(db, redis, board, claims.player_id, body.score)
+    score = body.score
+    if board.validation_url:
+        verdict = await score_validation.validate(
+            request.app.state.http,
+            board,
+            claims.player_id,
+            score,
+            lb.season_id(board.reset_schedule),
+            body.metadata,
+        )
+        if not verdict.allow:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                {"message": "score rejected", "reason": verdict.reason},
+            )
+        score = verdict.score
+        if not _in_bounds(board, score):  # validator adjustments must respect bounds too
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "score out of allowed range")
+    season, stored = await lb.submit(db, redis, board, claims.player_id, score)
     rank = await lb.rank_of(redis, board, season, claims.player_id)
     assert rank is not None
     return ScoreSubmitted(season=season, score=stored, rank=rank)

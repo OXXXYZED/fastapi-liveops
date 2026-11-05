@@ -295,8 +295,13 @@ class LeaderboardsApi {
 
   String _p(String board) => '/v1/leaderboards/${Uri.encodeComponent(board)}';
 
-  Future<ScoreResult> submitScore(String board, int score) async => ScoreResult.fromJson(await _c
-      ._playerJson('POST', '${_p(board)}/scores', body: {'score': score}) as Map<String, dynamic>);
+  /// [metadata] is forwarded to the server-side validation hook (match id, duration, …).
+  /// A rejected score throws [LiveOpsException] with status 422.
+  Future<ScoreResult> submitScore(String board, int score, {Map<String, Object?>? metadata}) async {
+    final body = {'score': score, if (metadata != null) 'metadata': metadata};
+    final res = await _c._playerJson('POST', '${_p(board)}/scores', body: body);
+    return ScoreResult.fromJson(res as Map<String, dynamic>);
+  }
 
   /// [season]: `current`, `previous` or an explicit id like `2026-W45`.
   Future<LeaderboardPage> getTop(String board,

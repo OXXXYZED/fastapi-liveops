@@ -419,6 +419,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/environments/{environment_id}/leaderboards/{key}/validation-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Validation Secret
+         * @description Generate a new signing secret for the validation hook and return it (shown only here).
+         */
+        post: operations["rotate_validation_secret_admin_environments__environment_id__leaderboards__key__validation_secret_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/environments/{environment_id}/players": {
         parameters: {
             query?: never;
@@ -1391,6 +1411,8 @@ export interface components {
             key: string;
             /** Max Score */
             max_score?: number | null;
+            /** Max Submits Per Minute */
+            max_submits_per_minute?: number | null;
             /** Min Score */
             min_score?: number | null;
             /** Name */
@@ -1401,6 +1423,13 @@ export interface components {
             sort_order: components["schemas"]["SortOrder"];
             /** @default best */
             update_mode: components["schemas"]["UpdateMode"];
+            /**
+             * Validation Fail Open
+             * @default false
+             */
+            validation_fail_open: boolean;
+            /** Validation Url */
+            validation_url?: string | null;
         };
         /** LeaderboardOut */
         LeaderboardOut: {
@@ -1418,6 +1447,8 @@ export interface components {
             key: string;
             /** Max Score */
             max_score: number | null;
+            /** Max Submits Per Minute */
+            max_submits_per_minute: number | null;
             /** Min Score */
             min_score: number | null;
             /** Name */
@@ -1425,6 +1456,10 @@ export interface components {
             reset_schedule: components["schemas"]["ResetSchedule"];
             sort_order: components["schemas"]["SortOrder"];
             update_mode: components["schemas"]["UpdateMode"];
+            /** Validation Fail Open */
+            validation_fail_open: boolean;
+            /** Validation Url */
+            validation_url: string | null;
         };
         /** LeaderboardPage */
         LeaderboardPage: {
@@ -1441,10 +1476,16 @@ export interface components {
         LeaderboardUpdate: {
             /** Max Score */
             max_score?: number | null;
+            /** Max Submits Per Minute */
+            max_submits_per_minute?: number | null;
             /** Min Score */
             min_score?: number | null;
             /** Name */
             name?: string | null;
+            /** Validation Fail Open */
+            validation_fail_open?: boolean | null;
+            /** Validation Url */
+            validation_url?: string | null;
         };
         /** MyRank */
         MyRank: {
@@ -1642,6 +1683,13 @@ export interface components {
         ScheduleStatus: "pending" | "published" | "cancelled" | "failed";
         /** ScoreSubmit */
         ScoreSubmit: {
+            /**
+             * Metadata
+             * @description Forwarded to the validation hook (e.g. match id, duration)
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
             /** Score */
             score: number;
         };
@@ -1705,6 +1753,11 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** ValidationSecret */
+        ValidationSecret: {
+            /** Secret */
+            secret: string;
         };
         /** Variant */
         Variant: {
@@ -2773,6 +2826,38 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_validation_secret_admin_environments__environment_id__leaderboards__key__validation_secret_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                environment_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationSecret"];
+                };
             };
             /** @description Validation Error */
             422: {

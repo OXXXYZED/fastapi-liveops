@@ -141,6 +141,20 @@ try {
   await page.reload();
   await page.getByRole("cell", { name: "1,234" }).waitFor();
   await page.getByText("E2E Hero").waitFor();
+
+  step("configure anti-cheat validation");
+  await page.getByRole("button", { name: "Anti-cheat" }).click();
+  await page.getByLabel("Max score").fill("100000");
+  await page.getByLabel("Submits / min / player").fill("30");
+  await page.getByLabel(/Validation hook URL/).fill("https://anticheat.example.com/validate");
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByText("Anti-cheat settings saved").waitFor();
+  await page.getByText("validated", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Anti-cheat" }).click();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Rotate signing secret" }).click();
+  if (!(await page.locator(".secret").innerText()).startsWith("vsec_")) throw new Error("no validation secret");
+  await page.keyboard.press("Escape");
   await shot("leaderboard");
 
   step("configure sign-in providers");

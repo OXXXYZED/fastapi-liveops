@@ -187,6 +187,13 @@ void main() {
     fake.login().enqueue(200, {'season': 'all', 'score': 500, 'rank': 1});
     expect((await c.leaderboards.submitScore('main', 500)).score, 500);
     expect(jsonDecode(fake.requests[1].body), {'score': 500});
+    fake.enqueue(200, {'season': 'all', 'score': 7, 'rank': 1});
+    await c.leaderboards.submitScore('main', 7, metadata: {'match': 'm1'});
+    expect(jsonDecode(fake.requests[2].body), {
+      'score': 7,
+      'metadata': {'match': 'm1'}
+    });
+    fake.requests.removeAt(2);
 
     fake.enqueue(200, {
       'key': 'main',

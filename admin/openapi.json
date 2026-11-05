@@ -1240,6 +1240,19 @@
             ],
             "title": "Max Score"
           },
+          "max_submits_per_minute": {
+            "anyOf": [
+              {
+                "maximum": 600.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Submits Per Minute"
+          },
           "min_score": {
             "anyOf": [
               {
@@ -1268,6 +1281,24 @@
           "update_mode": {
             "$ref": "#/components/schemas/UpdateMode",
             "default": "best"
+          },
+          "validation_fail_open": {
+            "default": false,
+            "title": "Validation Fail Open",
+            "type": "boolean"
+          },
+          "validation_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "pattern": "^https?://",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Url"
           }
         },
         "required": [
@@ -1304,6 +1335,17 @@
             ],
             "title": "Max Score"
           },
+          "max_submits_per_minute": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Submits Per Minute"
+          },
           "min_score": {
             "anyOf": [
               {
@@ -1327,6 +1369,21 @@
           },
           "update_mode": {
             "$ref": "#/components/schemas/UpdateMode"
+          },
+          "validation_fail_open": {
+            "title": "Validation Fail Open",
+            "type": "boolean"
+          },
+          "validation_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Url"
           }
         },
         "required": [
@@ -1338,6 +1395,9 @@
           "reset_schedule",
           "min_score",
           "max_score",
+          "max_submits_per_minute",
+          "validation_url",
+          "validation_fail_open",
           "created_at"
         ],
         "title": "LeaderboardOut",
@@ -1387,6 +1447,19 @@
             ],
             "title": "Max Score"
           },
+          "max_submits_per_minute": {
+            "anyOf": [
+              {
+                "maximum": 600.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Submits Per Minute"
+          },
           "min_score": {
             "anyOf": [
               {
@@ -1410,6 +1483,30 @@
               }
             ],
             "title": "Name"
+          },
+          "validation_fail_open": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Fail Open"
+          },
+          "validation_url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "pattern": "^https?://",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validation Url"
           }
         },
         "title": "LeaderboardUpdate",
@@ -1855,6 +1952,19 @@
       },
       "ScoreSubmit": {
         "properties": {
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Forwarded to the validation hook (e.g. match id, duration)",
+            "title": "Metadata"
+          },
           "score": {
             "maximum": 9007199254740992.0,
             "minimum": -9007199254740992.0,
@@ -2009,6 +2119,19 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "ValidationSecret": {
+        "properties": {
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "title": "ValidationSecret",
         "type": "object"
       },
       "Variant": {
@@ -3934,6 +4057,65 @@
           }
         ],
         "summary": "Remove Score",
+        "tags": [
+          "admin: leaderboards"
+        ]
+      }
+    },
+    "/admin/environments/{environment_id}/leaderboards/{key}/validation-secret": {
+      "post": {
+        "description": "Generate a new signing secret for the validation hook and return it (shown only here).",
+        "operationId": "rotate_validation_secret_admin_environments__environment_id__leaderboards__key__validation_secret_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "environment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Environment Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}$",
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationSecret"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rotate Validation Secret",
         "tags": [
           "admin: leaderboards"
         ]

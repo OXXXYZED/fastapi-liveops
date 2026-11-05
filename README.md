@@ -13,7 +13,7 @@ Runs on Postgres + Redis; one `docker compose up` to start.
 | **A/B experiments** | Weighted, sticky variants that override config, traffic %, targeting, exposure counts |
 | **Analytics hooks** | Signed webhooks with retries for player events, exposures, scores and publishes |
 | **Feature flags** | Targeting rules (`eq`, `in`, numeric, semver…), stable percentage rollouts |
-| **Leaderboards** | Higher/lower-is-better, best/latest/sum, daily/weekly/monthly seasons, around-me, anti-cheat bounds |
+| **Leaderboards** | Higher/lower-is-better, best/latest/sum, daily/weekly/monthly seasons, around-me; anti-cheat bounds, per-board submit limits and server-side validation hooks |
 | **Cloud save** | JSON slots with version-based conflict detection and size/slot limits |
 | **Players** | Anonymous / device-ID login, Google / Apple / Steam sign-in and account linking, display names, JWT, rate limits |
 | **Admin UI** | Manage everything above at `/ui`; admin accounts with viewer/editor/owner roles and an audit log |
@@ -121,6 +121,13 @@ curl 'localhost:8000/v1/config?platform=ios&app_version=1.4.0' -H "Authorization
 Integer scores within ±2^53. `season` = `current`, `previous` or an id like `2026-W45`.
 Ties are ordered by player id.
 
+**Anti-cheat**: `min_score`/`max_score`, `max_submits_per_minute` per player, and an optional
+**validation hook** — before storing, the server POSTs
+`{leaderboard, player_id, score, season, metadata}` (signed like webhooks) to your service, which
+answers `{"allow": true}`, `{"allow": true, "score": N}` to adjust, or `{"allow": false, "reason": …}`.
+Clients can attach `metadata` (match id, duration, replay hash…). `validation_fail_open` decides
+what happens when the validator is down (default: reject).
+
 ### Cloud save
 
 `PUT /v1/saves/{slot}` with `{"data": …, "expected_version": N}`: `0` = create only, `N` = must match,
@@ -160,7 +167,7 @@ end-to-end against a live server, an admin UI browser test and a Docker build.
 
 ## Roadmap
 
-- Server-side score validation hooks
+Ideas and contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
