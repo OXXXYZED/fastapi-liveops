@@ -12,10 +12,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     log_level: str = "INFO"
 
-    # Static admin token guarding /admin/*. Replace with real admin accounts later.
+    # Static admin token: acts as an owner (automation / break-glass). Set to "" to disable.
     admin_token: SecretStr = SecretStr("dev-admin-token")
     jwt_secret: SecretStr = SecretStr("dev-jwt-secret-change-me-32-bytes!")
     jwt_ttl_seconds: int = 3600
+    admin_session_ttl_seconds: int = 12 * 3600
 
     # Fixed-window rate limit for client (game) API, per API key + client IP.
     rate_limit_requests: int = 120

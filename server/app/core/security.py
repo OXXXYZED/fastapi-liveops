@@ -57,3 +57,52 @@ def decode_player_token(token: str, secret: str) -> PlayerClaims:
         return PlayerClaims(uuid.UUID(payload["sub"]), uuid.UUID(payload["env"]))
     except (ValueError, TypeError) as exc:
         raise jwt.InvalidTokenError("malformed claims") from exc
+
+
+# --- admin passwords & tokens ---
+
+_SCRYPT_N, _SCRYPT_R, _SCRYPT_P = 2**14, 8, 1
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    dk = hashlib.scrypt(password.encode(), salt=salt, n=_SCRYPT_N, r=_SCRYPT_R, p=_SCRYPT_P)
+    return f"scrypt${_SCRYPT_N}${_SCRYPT_R}${_SCRYPT_P}${salt.hex()}${dk.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        algo, n, r, p, salt, dk = stored.split("$")
+        if algo != "scrypt":
+            return False
+        got = hashlib.scrypt(
+            password.encode(), salt=bytes.fromhex(salt), n=int(n), r=int(r), p=int(p)
+        )
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(got, bytes.fromhex(dk))
+
+
+# Equalizes login timing for unknown emails.
+DUMMY_PASSWORD_HASH = hash_password(secrets.token_hex(16))
+
+
+def issue_admin_token(user_id: uuid.UUID, secret: str, ttl_seconds: int) -> str:
+    now = datetime.now(UTC)
+    payload = {
+        "sub": str(user_id),
+        "iat": now,
+        "exp": now + timedelta(seconds=ttl_seconds),
+        "typ": "admin",
+    }
+    return jwt.encode(payload, secret, algorithm="HS256")
+
+
+def decode_admin_token(token: str, secret: str) -> uuid.UUID:
+    payload = jwt.decode(token, secret, algorithms=["HS256"], options={"require": ["sub", "exp"]})
+    if payload.get("typ") != "admin":
+        raise jwt.InvalidTokenError("wrong token type")
+    try:
+        return uuid.UUID(payload["sub"])
+    except (ValueError, TypeError) as exc:
+        raise jwt.InvalidTokenError("malformed claims") from exc

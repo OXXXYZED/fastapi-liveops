@@ -8,11 +8,13 @@ import {
   type ButtonHTMLAttributes,
   type ReactNode,
 } from "react";
+import { useCanEdit } from "../api/auth";
 
 export function Button({
   variant,
   size,
   busy,
+  write,
   children,
   className = "",
   ...rest
@@ -20,7 +22,13 @@ export function Button({
   variant?: "primary" | "danger" | "ghost";
   size?: "sm";
   busy?: boolean;
+  /** Mutating action: disabled for read-only (viewer) admins. */
+  write?: boolean;
 }) {
+  const canEdit = useCanEdit();
+  if (write && !canEdit) {
+    rest = { ...rest, disabled: true, title: "Your role is read-only" };
+  }
   const cls = ["btn", variant && `btn-${variant}`, size && `btn-${size}`, className]
     .filter(Boolean)
     .join(" ");

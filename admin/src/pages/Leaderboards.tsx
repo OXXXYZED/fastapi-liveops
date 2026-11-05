@@ -20,12 +20,12 @@ export function LeaderboardsPage() {
     <>
       <EnvHead
         title="Leaderboards"
-        actions={<Button variant="primary" onClick={() => setCreating(true)}>New leaderboard</Button>}
+        actions={<Button write variant="primary" onClick={() => setCreating(true)}>New leaderboard</Button>}
       />
       <ErrorBox error={boards.error} />
       {boards.isLoading ? (
         <div className="card"><Loading /></div>
-      ) : !boards.data?.length ? (
+      ) : boards.error ? null : !boards.data?.length ? (
         <div className="card"><Empty title="No leaderboards">Create one, then submit scores from the SDK.</Empty></div>
       ) : (
         <>
@@ -113,7 +113,7 @@ function BoardView({ envId, board, onDeleted }: { envId: string; board: Leaderbo
               <option value="previous">Previous season</option>
             </select>
           )}
-          <Button
+          <Button write
             variant="danger"
             size="sm"
             busy={del.isPending}
@@ -126,7 +126,7 @@ function BoardView({ envId, board, onDeleted }: { envId: string; board: Leaderbo
       <ErrorBox error={entries.error} />
       {entries.isLoading ? (
         <Loading />
-      ) : !entries.data?.entries.length ? (
+      ) : entries.error ? null : !entries.data?.entries.length ? (
         <Empty title="No scores">{entries.data && <span className="mono">season {entries.data.season}</span>}</Empty>
       ) : (
         <>
@@ -147,7 +147,7 @@ function BoardView({ envId, board, onDeleted }: { envId: string; board: Leaderbo
                     <td className="mono">{e.player_id}</td>
                     <td className="num">{e.score.toLocaleString()}</td>
                     <td className="num">
-                      <Button
+                      <Button write
                         size="sm"
                         variant="danger"
                         onClick={() => confirmAction("Remove this player's score from the season?") && remove.mutate(e.player_id)}

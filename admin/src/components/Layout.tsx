@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useMe } from "../api/auth";
 import { useEnvContext, useProjects } from "../api/hooks";
 import { Button } from "./ui";
 
@@ -13,6 +14,7 @@ const SECTIONS = [
 
 export function Layout({ onLogout }: { onLogout: () => void }) {
   const [open, setOpen] = useState(false);
+  const me = useMe();
   const { projectId, envId, project } = useEnvContext();
   const projects = useProjects();
   const navigate = useNavigate();
@@ -94,10 +96,22 @@ export function Layout({ onLogout }: { onLogout: () => void }) {
           <NavLink to="/" end>
             All projects
           </NavLink>
+          {me?.role === "owner" && (
+            <>
+              <NavLink to="/users">Admin users</NavLink>
+              <NavLink to="/audit">Audit log</NavLink>
+            </>
+          )}
         </nav>
 
-        <div className="sidebar-footer">
-          <Button size="sm" variant="ghost" onClick={onLogout}>
+        <div className="sidebar-footer stack" style={{ gap: 6 }}>
+          {me && (
+            <div className="small" style={{ padding: "0 8px" }}>
+              <div style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{me.email}</div>
+              <span className={`badge ${me.role === "viewer" ? "" : "badge-accent"}`}>{me.role}</span>
+            </div>
+          )}
+          <Button size="sm" variant="ghost" onClick={onLogout} style={{ justifyContent: "flex-start" }}>
             Sign out
           </Button>
         </div>

@@ -18,7 +18,7 @@ export function ProjectsPage() {
         title="Projects"
         description="Each project is a game with its own environments."
         actions={
-          <Button variant="primary" onClick={() => setCreating(true)}>
+          <Button write variant="primary" onClick={() => setCreating(true)}>
             New project
           </Button>
         }
@@ -32,7 +32,7 @@ export function ProjectsPage() {
         <div className="card">
           <Empty title="No projects yet">
             <p>Create your first project to get API keys for your game.</p>
-            <Button variant="primary" onClick={() => setCreating(true)}>
+            <Button write variant="primary" onClick={() => setCreating(true)}>
               New project
             </Button>
           </Empty>

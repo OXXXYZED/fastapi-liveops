@@ -23,7 +23,9 @@ async def app(settings: Settings) -> AsyncIterator[FastAPI]:
     app = create_app(settings)
     async with LifespanManager(app):
         async with app.state.engine.begin() as conn:
-            await conn.execute(text("TRUNCATE projects, players RESTART IDENTITY CASCADE"))
+            await conn.execute(
+                text("TRUNCATE projects, players, admin_users, audit_log RESTART IDENTITY CASCADE")
+            )
         await app.state.redis.flushdb()
         yield app
 

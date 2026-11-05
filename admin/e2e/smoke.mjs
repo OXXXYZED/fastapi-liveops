@@ -21,13 +21,14 @@ const step = (name) => console.log(`• ${name}`);
 try {
   step("login rejects a bad token");
   await page.goto(`${base}/ui/`);
+  await page.getByRole("button", { name: "Use admin token instead" }).click();
   await page.getByLabel("Admin token").fill("wrong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByText("invalid admin token").waitFor();
 
   step("login");
   await page.getByLabel("Admin token").fill(token);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("heading", { name: "Projects" }).waitFor();
 
   step("create project");
@@ -130,6 +131,28 @@ try {
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Delete project" }).click();
   await page.getByText("Project deleted").waitFor();
+
+  step("invite a viewer, check audit log");
+  await page.getByRole("link", { name: "Admin users" }).click();
+  await page.getByRole("button", { name: "Invite user" }).click();
+  await page.getByLabel("Email", { exact: true }).fill(`viewer-${slug}@example.com`);
+  await page.getByLabel("Initial password").fill("viewer-password-1");
+  await page.getByRole("dialog").locator("select").selectOption("viewer");
+  await page.getByRole("button", { name: "Create" }).click();
+  await page.getByText(`viewer-${slug}@example.com`).waitFor();
+  await page.getByRole("link", { name: "Audit log" }).click();
+  await page.getByText("/admin/users").first().waitFor();
+  await shot("audit");
+
+  step("viewer is read-only");
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByLabel("Email", { exact: true }).fill(`viewer-${slug}@example.com`);
+  await page.getByLabel("Password").fill("viewer-password-1");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByRole("heading", { name: "Projects" }).waitFor();
+  if (!(await page.getByRole("button", { name: "New project" }).first().isDisabled()))
+    throw new Error("viewer can create projects");
+  if (await page.getByRole("link", { name: "Admin users" }).count()) throw new Error("viewer sees users");
 
   if (errors.length) throw new Error(`browser errors:\n${errors.join("\n")}`);
   console.log("✓ admin UI smoke test passed");

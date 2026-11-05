@@ -9,7 +9,7 @@ rebuildable, so Redis persistence is optional).
 | | |
 |---|---|
 | `LIVEOPS_ENV=prod` | Server refuses to start with default secrets |
-| `LIVEOPS_ADMIN_TOKEN` | Long random string, e.g. `openssl rand -hex 32` |
+| `LIVEOPS_ADMIN_TOKEN` | Long random string (`openssl rand -hex 32`), or `""` to disable it once named owners exist (`python -m app.cli create-admin`) |
 | `LIVEOPS_JWT_SECRET` | ≥ 32 random bytes. Rotating it logs every player out (SDKs re-login transparently) |
 | `LIVEOPS_DATABASE_URL` | `postgresql+asyncpg://user:pass@host:5432/db` |
 | `LIVEOPS_REDIS_URL` | `redis://host:6379/0` |

@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import ApiKeyKind, ResetSchedule, SortOrder, UpdateMode
+from app.models import AdminRole, ApiKeyKind, ResetSchedule, SortOrder, UpdateMode
 from app.services.flags import Condition
 
 SLUG = r"^[a-z0-9][a-z0-9-]{0,63}$"
@@ -226,3 +226,61 @@ class AdminPlayerOut(ORM):
 class AdminPlayerPage(BaseModel):
     total: int
     players: list[AdminPlayerOut]
+
+
+# --- Admin users ---
+
+EMAIL = r"^[^@\s]{1,64}@[^@\s]{1,255}$"
+
+
+class AdminLogin(BaseModel):
+    email: str = Field(max_length=320)
+    password: str = Field(max_length=256)
+
+
+class AdminMe(BaseModel):
+    id: uuid.UUID | None
+    email: str
+    role: AdminRole
+
+
+class AdminSession(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: AdminMe
+
+
+class AdminUserCreate(BaseModel):
+    email: str = Field(pattern=EMAIL, max_length=320)
+    password: str = Field(min_length=10, max_length=256)
+    role: AdminRole = AdminRole.viewer
+
+
+class AdminUserUpdate(BaseModel):
+    role: AdminRole | None = None
+    disabled: bool | None = None
+    password: str | None = Field(default=None, min_length=10, max_length=256)
+
+
+class AdminUserOut(ORM):
+    id: uuid.UUID
+    email: str
+    role: AdminRole
+    disabled: bool
+    created_at: datetime
+    last_login_at: datetime | None
+
+
+class AuditEntryOut(ORM):
+    id: uuid.UUID
+    at: datetime
+    actor: str
+    method: str
+    path: str
+    detail: dict[str, Any] | None
+
+
+class AuditPage(BaseModel):
+    total: int
+    entries: list[AuditEntryOut]

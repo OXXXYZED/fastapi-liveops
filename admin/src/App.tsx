@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { getToken, setToken, setUnauthorizedHandler } from "./api/client";
 import { Layout } from "./components/Layout";
 import { ApiKeysPage } from "./pages/ApiKeys";
@@ -11,10 +11,14 @@ import { LoginPage } from "./pages/Login";
 import { PlayersPage } from "./pages/Players";
 import { ProjectPage } from "./pages/Project";
 import { ProjectsPage } from "./pages/Projects";
+import { AuditPage } from "./pages/Audit";
+import { UsersPage } from "./pages/Users";
+import { MeProvider } from "./api/auth";
 
 export function App() {
   const [authed, setAuthed] = useState(() => !!getToken());
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -24,7 +28,16 @@ export function App() {
     });
   }, [qc]);
 
-  if (!authed) return <LoginPage onLogin={() => setAuthed(true)} />;
+  if (!authed)
+    return (
+      <LoginPage
+        onLogin={() => {
+          qc.clear(); // never show the previous admin's cached data
+          navigate("/", { replace: true });
+          setAuthed(true);
+        }}
+      />
+    );
 
   const logout = () => {
     setToken(null);
@@ -33,6 +46,7 @@ export function App() {
   };
 
   return (
+    <MeProvider>
     <Routes>
       <Route element={<Layout onLogout={logout} />}>
         <Route index element={<ProjectsPage />} />
@@ -45,8 +59,11 @@ export function App() {
           <Route path="players" element={<PlayersPage />} />
           <Route path="keys" element={<ApiKeysPage />} />
         </Route>
+        <Route path="users" element={<UsersPage />} />
+        <Route path="audit" element={<AuditPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    </MeProvider>
   );
 }

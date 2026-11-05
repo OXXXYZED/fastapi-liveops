@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DbDep, require_admin, utcnow
+from app.api.deps import DbDep, require_admin, require_owner, utcnow
 from app.api.schemas import (
     AdminPlayerOut,
     AdminPlayerPage,
@@ -68,7 +68,11 @@ async def get_project(project_id: uuid.UUID, db: DbDep) -> Project:
     return await _get_project(db, project_id)
 
 
-@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/projects/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_owner)],
+)
 async def delete_project(project_id: uuid.UUID, db: DbDep) -> None:
     await db.delete(await _get_project(db, project_id))
     await db.commit()

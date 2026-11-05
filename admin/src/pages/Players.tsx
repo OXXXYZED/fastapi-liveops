@@ -44,7 +44,7 @@ export function PlayersPage() {
         <ErrorBox error={players.error} />
         {players.isLoading ? (
           <Loading />
-        ) : !players.data?.players.length ? (
+        ) : players.error ? null : !players.data?.players.length ? (
           <Empty title={search ? "No player found" : "No players yet"} />
         ) : (
           <>
@@ -113,7 +113,7 @@ function SavesModal({ envId, playerId, onClose }: { envId: string; playerId: str
       <ErrorBox error={saves.error} />
       {saves.isLoading ? (
         <Loading />
-      ) : !saves.data?.length ? (
+      ) : saves.error ? null : !saves.data?.length ? (
         <Empty title="No saves" />
       ) : (
         <table>
@@ -140,7 +140,7 @@ function SavesModal({ envId, playerId, onClose }: { envId: string; playerId: str
             </Field>
           )}
           <div className="row">
-            <Button
+            <Button write
               variant="danger"
               size="sm"
               busy={del.isPending}

@@ -14,7 +14,7 @@ Runs on Postgres + Redis; one `docker compose up` to start.
 | **Leaderboards** | Higher/lower-is-better, best/latest/sum, daily/weekly/monthly seasons, around-me, anti-cheat bounds |
 | **Cloud save** | JSON slots with version-based conflict detection and size/slot limits |
 | **Players** | Anonymous / device-ID login, JWT, per-key and per-player rate limits |
-| **Admin UI** | Manage everything above at `/ui` |
+| **Admin UI** | Manage everything above at `/ui`; admin accounts with viewer/editor/owner roles and an audit log |
 | **SDKs** | Unity (UPM, all platforms incl. WebGL) and Dart/Flutter, with offline config cache |
 
 ## Quickstart
@@ -24,8 +24,13 @@ git clone https://github.com/OXXXYZED/fastapi-liveops && cd fastapi-liveops
 docker compose up --build
 ```
 
-Open **http://localhost:8000/ui**, sign in with `dev-admin-token`, create a project and a
-**client** API key in its `dev` environment. API docs: http://localhost:8000/docs.
+Open **http://localhost:8000/ui**, choose *Use admin token* and enter `dev-admin-token`, then create
+a project and a **client** API key in its `dev` environment. Create named admin accounts under
+**Admin users**, or from the CLI:
+
+```bash
+docker compose exec server python -m app.cli create-admin you@example.com --role owner
+``` API docs: http://localhost:8000/docs.
 
 ### From a game
 
@@ -103,7 +108,8 @@ omitted = last write wins. Mismatch → `409` with `current_version`. Limits: 25
 | `LIVEOPS_ENV` | `dev` | Outside `dev`, the server refuses to start with default secrets |
 | `LIVEOPS_DATABASE_URL` | local Postgres | asyncpg URL |
 | `LIVEOPS_REDIS_URL` | `redis://localhost:6379/0` | |
-| `LIVEOPS_ADMIN_TOKEN` | `dev-admin-token` | |
+| `LIVEOPS_ADMIN_TOKEN` | `dev-admin-token` | Static owner token for automation / break-glass; `""` disables it |
+| `LIVEOPS_ADMIN_SESSION_TTL_SECONDS` | `43200` | Admin login session length |
 | `LIVEOPS_JWT_SECRET` | dev value | ≥ 32 random bytes |
 | `LIVEOPS_JWT_TTL_SECONDS` | `3600` | |
 | `LIVEOPS_RATE_LIMIT_REQUESTS` / `_WINDOW_SECONDS` | `120` / `60` | Fixed window, per API key (+IP) and per player |
@@ -128,7 +134,6 @@ end-to-end against a live server, an admin UI browser test and a Docker build.
 
 ## Roadmap
 
-- Admin accounts with roles instead of a single token
 - Account linking (Google / Apple / Steam) and player profiles with display names
 - Scheduled config changes and A/B experiments with analytics hooks
 - Server-side score validation hooks

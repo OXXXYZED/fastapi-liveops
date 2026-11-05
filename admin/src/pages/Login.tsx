@@ -3,7 +3,10 @@ import { api, setToken, unwrap } from "../api/client";
 import { Button, ErrorBox, Field } from "../components/ui";
 
 export function LoginPage({ onLogin }: { onLogin: () => void }) {
-  const [token, setValue] = useState("");
+  const [mode, setMode] = useState<"password" | "token">("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [token, setTokenValue] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
 
@@ -11,9 +14,14 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    setToken(token.trim());
     try {
-      await unwrap(api.GET("/admin/projects"));
+      if (mode === "password") {
+        const s = await unwrap(api.POST("/admin/auth/login", { body: { email, password } }));
+        setToken(s.access_token);
+      } else {
+        setToken(token.trim());
+        await unwrap(api.GET("/admin/auth/me"));
+      }
       onLogin();
     } catch (err) {
       setToken(null);
@@ -23,6 +31,8 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
     }
   }
 
+  const canSubmit = mode === "password" ? email.trim() && password : token.trim();
+
   return (
     <div className="login">
       <form className="card" onSubmit={submit}>
@@ -30,24 +40,34 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
           <div className="brand" style={{ padding: 0 }}>
             <span className="brand-dot" /> LiveOps Admin
           </div>
-          <p className="muted" style={{ margin: 0 }}>
-            Sign in with the server's admin token (<code>LIVEOPS_ADMIN_TOKEN</code>).
-          </p>
           <ErrorBox error={error} />
-          <Field label="Admin token">
-            <input
-              className="input"
-              type="password"
-              autoComplete="current-password"
-              value={token}
-              onChange={(e) => setValue(e.target.value)}
-              required
-              autoFocus
-            />
-          </Field>
-          <Button variant="primary" type="submit" busy={busy} disabled={!token.trim()}>
+          {mode === "password" ? (
+            <>
+              <Field label="Email">
+                <input className="input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+              </Field>
+              <Field label="Password">
+                <input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              </Field>
+            </>
+          ) : (
+            <Field label="Admin token" hint={<>The server's <code>LIVEOPS_ADMIN_TOKEN</code> — full owner access.</>}>
+              <input className="input" type="password" value={token} onChange={(e) => setTokenValue(e.target.value)} required autoFocus />
+            </Field>
+          )}
+          <Button variant="primary" type="submit" busy={busy} disabled={!canSubmit}>
             Sign in
           </Button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              setError(null);
+              setMode(mode === "password" ? "token" : "password");
+            }}
+          >
+            {mode === "password" ? "Use admin token instead" : "Sign in with email"}
+          </button>
         </div>
       </form>
     </div>

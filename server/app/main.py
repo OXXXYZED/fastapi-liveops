@@ -9,7 +9,16 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis
 
-from app.api import admin, config_admin, config_client, health, leaderboards, players, saves
+from app.api import (
+    admin,
+    admin_users,
+    config_admin,
+    config_client,
+    health,
+    leaderboards,
+    players,
+    saves,
+)
 from app.core.config import Settings, get_settings
 from app.db.session import make_engine, make_sessionmaker
 
@@ -18,7 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     if settings.env != "dev":
         for name in ("admin_token", "jwt_secret"):
-            if getattr(settings, name).get_secret_value().startswith("dev-"):
+            if getattr(settings, name).get_secret_value().startswith("dev-"):  # "" is allowed
                 raise RuntimeError(f"LIVEOPS_{name.upper()} must be set outside dev")
     logging.basicConfig(level=settings.log_level)
 
@@ -38,6 +47,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="fastapi-liveops", version="0.1.0", lifespan=lifespan)
     app.include_router(health.router)
+    app.include_router(admin_users.auth)
+    app.include_router(admin_users.users)
     app.include_router(admin.router)
     app.include_router(players.router)
     app.include_router(config_admin.router)

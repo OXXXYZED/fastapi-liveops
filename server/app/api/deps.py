@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -15,10 +16,11 @@ from app.core.config import Settings
 from app.core.security import (
     PlayerClaims,
     constant_time_equals,
+    decode_admin_token,
     decode_player_token,
     hash_api_key,
 )
-from app.models import ApiKey, ApiKeyKind
+from app.models import AdminRole, AdminUser, ApiKey, ApiKeyKind, AuditLog
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -49,14 +51,63 @@ def _unauthorized(detail: str) -> HTTPException:
     )
 
 
-async def require_admin(
+@dataclass(frozen=True, slots=True)
+class AdminPrincipal:
+    user_id: uuid.UUID | None  # None = static admin token
+    email: str
+    role: AdminRole
+
+
+async def authenticate_admin(
+    db: DbDep,
     settings: SettingsDep,
     creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-) -> None:
-    if creds is None or not constant_time_equals(
-        creds.credentials, settings.admin_token.get_secret_value()
-    ):
+) -> AdminPrincipal:
+    if creds is None:
+        raise _unauthorized("missing admin credentials")
+    static = settings.admin_token.get_secret_value()
+    if static and constant_time_equals(creds.credentials, static):
+        return AdminPrincipal(None, "admin-token", AdminRole.owner)
+    try:
+        user_id = decode_admin_token(creds.credentials, settings.jwt_secret.get_secret_value())
+    except jwt.InvalidTokenError as exc:
+        raise _unauthorized("invalid admin token") from exc
+    # Looked up on every request so disabling a user or changing a role applies immediately.
+    user = await db.get(AdminUser, user_id)
+    if user is None or user.disabled:
         raise _unauthorized("invalid admin token")
+    return AdminPrincipal(user.id, user.email, user.role)
+
+
+AdminDep = Annotated[AdminPrincipal, Depends(authenticate_admin)]
+_READ_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+async def require_admin(
+    request: Request, principal: AdminDep, db: DbDep
+) -> AsyncIterator[AdminPrincipal]:
+    """Reads need viewer, writes need editor. Successful writes are recorded in the audit log."""
+    write = request.method not in _READ_METHODS
+    if write and principal.role.level < AdminRole.editor.level:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "viewer role is read-only")
+    yield principal
+    if write:
+        db.add(
+            AuditLog(
+                actor_id=principal.user_id,
+                actor=principal.email,
+                method=request.method,
+                path=request.url.path[:500],
+                detail=dict(request.path_params) or None,
+            )
+        )
+        await db.commit()
+
+
+async def require_owner(principal: AdminDep) -> AdminPrincipal:
+    if principal.role != AdminRole.owner:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "owner role required")
+    return principal
 
 
 async def _enforce_rate_limit(

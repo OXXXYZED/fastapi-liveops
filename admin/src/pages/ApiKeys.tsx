@@ -45,13 +45,13 @@ export function ApiKeysPage() {
             <strong>client</strong> keys ship in game builds; <strong>server</strong> keys are secret.
           </>
         }
-        actions={<Button variant="primary" onClick={() => setCreating(true)}>New key</Button>}
+        actions={<Button write variant="primary" onClick={() => setCreating(true)}>New key</Button>}
       />
       <div className="card">
         <ErrorBox error={keys.error} />
         {keys.isLoading ? (
           <Loading />
-        ) : !keys.data?.length ? (
+        ) : keys.error ? null : !keys.data?.length ? (
           <Empty title="No API keys">Create a client key to connect your game.</Empty>
         ) : (
           <div className="table-wrap">
@@ -78,7 +78,7 @@ export function ApiKeysPage() {
                       {k.revoked_at ? (
                         <span className="badge badge-danger">revoked</span>
                       ) : (
-                        <Button
+                        <Button write
                           size="sm"
                           variant="danger"
                           busy={revoke.isPending && revoke.variables === k.id}

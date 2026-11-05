@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, unwrap, type Condition, type Flag } from "../api/client";
+import { useCanEdit } from "../api/auth";
 import { useEnvContext } from "../api/hooks";
 import { Button, Empty, ErrorBox, Field, Loading, Modal, confirmAction, useToast } from "../components/ui";
 import { EnvHead } from "./EnvHead";
@@ -44,6 +45,7 @@ export function FlagsPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const [editing, setEditing] = useState<Flag | "new" | null>(null);
+  const canEdit = useCanEdit();
   const flags = useQuery({
     queryKey: ["flags", envId],
     queryFn: () => unwrap(api.GET("/admin/environments/{environment_id}/flags", { params: { path } })),
@@ -78,13 +80,13 @@ export function FlagsPage() {
       <EnvHead
         title="Feature flags"
         description="Evaluated per player: enabled → all rules match → inside rollout %."
-        actions={<Button variant="primary" onClick={() => setEditing("new")}>New flag</Button>}
+        actions={<Button write variant="primary" onClick={() => setEditing("new")}>New flag</Button>}
       />
       <div className="card">
         <ErrorBox error={flags.error} />
         {flags.isLoading ? (
           <Loading />
-        ) : !flags.data?.length ? (
+        ) : flags.error ? null : !flags.data?.length ? (
           <Empty title="No feature flags">Flags let you roll features out gradually or to specific segments.</Empty>
         ) : (
           <div className="table-wrap">
@@ -114,7 +116,7 @@ export function FlagsPage() {
                         <input
                           type="checkbox"
                           checked={f.enabled}
-                          disabled={toggle.isPending && toggle.variables?.key === f.key}
+                          disabled={!canEdit || (toggle.isPending && toggle.variables?.key === f.key)}
                           onChange={() => toggle.mutate(f)}
                           aria-label={`Toggle ${f.key}`}
                         />
@@ -205,12 +207,12 @@ function FlagEditor({
       footer={
         <>
           {flag && (
-            <Button variant="danger" onClick={() => onDelete(flag.key)} style={{ marginRight: "auto" }}>
+            <Button write variant="danger" onClick={() => onDelete(flag.key)} style={{ marginRight: "auto" }}>
               Delete
             </Button>
           )}
           <Button onClick={onClose}>Cancel</Button>
-          <Button
+          <Button write
             variant="primary"
             busy={save.isPending}
             disabled={!key || !!keyError || !rulesValid}

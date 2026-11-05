@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Admin accounts (scrypt passwords, JWT sessions) with `viewer` / `editor` / `owner` roles,
+  last-owner protection, login rate limiting, `python -m app.cli create-admin`.
+- Audit log of all successful admin writes, with UI.
+
 ## 0.1.0 — 2026-11-05
 
 First public release.

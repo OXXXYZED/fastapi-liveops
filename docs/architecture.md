@@ -21,7 +21,11 @@ Everything is scoped to an **environment**; deleting a project cascades.
 
 ## Auth
 
-- **Admin**: static bearer token (`LIVEOPS_ADMIN_TOKEN`), compared in constant time.
+- **Admin**: named accounts (scrypt-hashed passwords, HS256 session JWT with `typ=admin`) or the
+  static `LIVEOPS_ADMIN_TOKEN` (acts as owner; compared in constant time). The user row is loaded on
+  every request, so disabling a user or changing a role takes effect immediately. Reads need
+  `viewer`, writes `editor`; project deletion and user management need `owner`. Successful writes
+  are appended to `audit_log`.
 - **API keys**: `lo_<kind>_<256-bit random>`, stored as SHA-256 (high-entropy keys don't need a slow hash;
   the hash is indexed for O(1) lookup). Client keys are public by design — they only allow
   creating/resuming players.

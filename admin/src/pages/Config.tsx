@@ -145,7 +145,7 @@ export function ConfigPage() {
                   onChange={(e) => setNote(e.target.value)}
                   aria-label="Change note"
                 />
-                <Button
+                <Button write
                   variant="primary"
                   busy={publish.isPending}
                   disabled={!dirty || !!parsed.error}
@@ -165,7 +165,7 @@ export function ConfigPage() {
         </div>
         {versions.isLoading ? (
           <Loading />
-        ) : !versions.data?.length ? (
+        ) : versions.error ? <ErrorBox error={versions.error} /> : !versions.data?.length ? (
           <Empty title="No versions yet" />
         ) : (
           <div className="table-wrap">
@@ -240,7 +240,7 @@ function VersionModal(props: {
         <>
           <Button onClick={props.onClose}>Close</Button>
           {!props.isLive && (
-            <Button variant="primary" busy={props.busy} onClick={props.onRollback}>
+            <Button write variant="primary" busy={props.busy} onClick={props.onRollback}>
               Roll back to this version
             </Button>
           )}

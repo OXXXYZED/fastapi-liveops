@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, unwrap } from "../api/client";
+import { useIsOwner } from "../api/auth";
 import { useEnvContext } from "../api/hooks";
 import {
   Button,
@@ -17,6 +18,7 @@ import {
 
 export function ProjectPage() {
   const { project, projectId, isLoading } = useEnvContext();
+  const isOwner = useIsOwner();
   const [adding, setAdding] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -42,8 +44,8 @@ export function ProjectPage() {
         description={<span className="mono">{project.slug}</span>}
         actions={
           <>
-            <Button onClick={() => setAdding(true)}>Add environment</Button>
-            <Button
+            <Button write onClick={() => setAdding(true)}>Add environment</Button>
+            {isOwner && <Button
               variant="danger"
               busy={del.isPending}
               onClick={() =>
@@ -52,7 +54,7 @@ export function ProjectPage() {
               }
             >
               Delete project
-            </Button>
+            </Button>}
           </>
         }
       />
