@@ -7,10 +7,12 @@ import { Button } from "./ui";
 const SECTIONS = [
   ["config", "Remote config"],
   ["flags", "Feature flags"],
+  ["experiments", "Experiments"],
   ["leaderboards", "Leaderboards"],
   ["players", "Players & saves"],
   ["keys", "API keys"],
   ["sign-in", "Player sign-in"],
+  ["webhooks", "Webhooks"],
 ] as const;
 
 export function Layout({ onLogout }: { onLogout: () => void }) {

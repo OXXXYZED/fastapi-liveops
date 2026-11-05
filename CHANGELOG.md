@@ -8,6 +8,12 @@
 - Google / Apple (OIDC, JWKS-verified) and Steam (session ticket) sign-in; linking accounts to
   existing players; per-environment provider config with write-only Steam key.
 - Player display names, returned in leaderboard entries.
+- A/B experiments with sticky weighted variants, config overrides, traffic and targeting; exposure counts.
+- Scheduled config publishes via an in-process background worker (SKIP LOCKED, multi-replica safe).
+- Signed webhooks (transactional outbox, retries with backoff) for player, experiment, config and
+  leaderboard events; `POST /v1/events` for client analytics events.
+- SDKs: `GetVariant`, `Track`.
+- Fixed: config editor lost in-progress edits when the live config refreshed after a publish.
 - SDKs: `LoginWithProvider`, `LinkIdentity` / `UnlinkIdentity`, `GetProfile`, `SetDisplayName`.
 
 ## 0.1.0 — 2026-11-05

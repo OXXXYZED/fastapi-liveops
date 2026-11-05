@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, api, unwrap } from "../api/client";
 import { useEnvContext } from "../api/hooks";
 import { Button, Empty, ErrorBox, Field, Loading, Modal, confirmAction, formatDate, useToast } from "../components/ui";
@@ -34,7 +34,13 @@ export function ConfigPage() {
   const [text, setText] = useState(liveText);
   const [note, setNote] = useState("");
   const [viewing, setViewing] = useState<number | null>(null);
-  useEffect(() => setText(liveText), [liveText]);
+  const [scheduling, setScheduling] = useState(false);
+  // Follow the server's live config, but never overwrite edits the user has started.
+  const syncedText = useRef(liveText);
+  useEffect(() => {
+    setText((current) => (current === syncedText.current ? liveText : current));
+    syncedText.current = liveText;
+  }, [liveText]);
 
   const parsed = useMemo(() => {
     try {
@@ -61,6 +67,7 @@ export function ConfigPage() {
       ),
     onSuccess: (v) => {
       setNote("");
+      syncedText.current = text; // what's in the editor is now live
       refresh();
       toast(`Published v${v.version}`);
     },
@@ -145,6 +152,9 @@ export function ConfigPage() {
                   onChange={(e) => setNote(e.target.value)}
                   aria-label="Change note"
                 />
+                <Button write disabled={!!parsed.error} onClick={() => setScheduling(true)}>
+                  Schedule…
+                </Button>
                 <Button write
                   variant="primary"
                   busy={publish.isPending}
@@ -158,6 +168,8 @@ export function ConfigPage() {
           )}
         </div>
       </div>
+
+      <Schedules envId={envId} />
 
       <div className="card">
         <div className="card-head">
@@ -199,6 +211,9 @@ export function ConfigPage() {
           </div>
         )}
       </div>
+      {scheduling && parsed.value && (
+        <ScheduleModal envId={envId} values={parsed.value} note={note} onClose={() => setScheduling(false)} />
+      )}
       {viewing !== null && (
         <VersionModal
           envId={envId}
@@ -254,5 +269,93 @@ function VersionModal(props: {
         </Field>
       )}
     </Modal>
+  );
+}
+
+function toLocalInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function ScheduleModal(props: { envId: string; values: Record<string, unknown>; note: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [at, setAt] = useState(() => toLocalInput(new Date(Date.now() + 3600_000)));
+  const when = new Date(at);
+  const valid = !isNaN(when.getTime()) && when.getTime() > Date.now();
+  const m = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST("/admin/environments/{environment_id}/config/schedules", {
+          params: { path: { environment_id: props.envId } },
+          body: { values: props.values, note: props.note.trim() || null, publish_at: when.toISOString() },
+        }),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["schedules", props.envId] });
+      toast(`Scheduled for ${formatDate(when.toISOString())}`);
+      props.onClose();
+    },
+  });
+  return (
+    <Modal
+      title="Schedule publish"
+      onClose={props.onClose}
+      footer={<><Button onClick={props.onClose}>Cancel</Button><Button write variant="primary" busy={m.isPending} disabled={!valid} onClick={() => m.mutate()}>Schedule</Button></>}
+    >
+      <ErrorBox error={m.error} />
+      <Field label="Publish at" hint={`Your local time (${Intl.DateTimeFormat().resolvedOptions().timeZone}). Publishes these exact values as a new version.`}>
+        <input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+      </Field>
+    </Modal>
+  );
+}
+
+function Schedules({ envId }: { envId: string }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const q = useQuery({
+    queryKey: ["schedules", envId],
+    queryFn: () => unwrap(api.GET("/admin/environments/{environment_id}/config/schedules", { params: { path: { environment_id: envId } } })),
+    refetchInterval: 30_000,
+  });
+  const cancel = useMutation({
+    mutationFn: (id: string) =>
+      unwrap(api.DELETE("/admin/environments/{environment_id}/config/schedules/{schedule_id}", { params: { path: { environment_id: envId, schedule_id: id } } })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["schedules", envId] });
+      toast("Schedule cancelled");
+    },
+    onError: (e) => toast(e.message, true),
+  });
+  const upcoming = q.data?.filter((s) => s.status === "pending" || s.status === "failed") ?? [];
+  if (!upcoming.length) return null;
+  return (
+    <div className="card">
+      <div className="card-head"><h2>Scheduled</h2></div>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Note</th><th>By</th><th>Status</th><th /></tr></thead>
+          <tbody>
+            {upcoming.map((s) => (
+              <tr key={s.id}>
+                <td><strong>{formatDate(s.publish_at)}</strong></td>
+                <td className="muted">{s.note ?? "—"}</td>
+                <td className="muted small">{s.created_by}</td>
+                <td>
+                  <span className={`badge ${s.status === "failed" ? "badge-danger" : "badge-accent"}`}>{s.status}</span>
+                  {s.error && <div className="small" style={{ color: "var(--danger)" }}>{s.error}</div>}
+                </td>
+                <td className="num">
+                  {s.status === "pending" && (
+                    <Button write size="sm" variant="danger" onClick={() => confirmAction("Cancel this scheduled publish?") && cancel.mutate(s.id)}>Cancel</Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

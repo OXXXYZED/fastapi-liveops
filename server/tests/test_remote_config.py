@@ -44,7 +44,7 @@ async def test_client_config_and_etag(client: AsyncClient, env: dict[str, Any]) 
     headers = await _player_headers(client, env)
 
     r = await client.get("/v1/config", headers=headers)
-    assert r.json() == {"version": 0, "values": {}, "flags": {}}
+    assert r.json() == {"version": 0, "values": {}, "flags": {}, "experiments": {}}
 
     await client.post(f"{base}/config", json={"values": {"lives": 3}}, headers=ADMIN)
     r = await client.get("/v1/config", headers=headers)  # cache must be invalidated

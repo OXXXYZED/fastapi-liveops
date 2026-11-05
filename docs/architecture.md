@@ -42,6 +42,10 @@ Everything is scoped to an **environment**; deleting a project cascades.
 | Score submit | Postgres upsert computes the merged score (`GREATEST` / `LEAST` / `+` / overwrite); Redis `ZADD` happens while the row lock is held, so Redis sees updates in commit order |
 | Leaderboard index | Rebuilt from Postgres when the ZSET is missing (Redis flush, season TTL expiry) |
 | Cloud save | Conditional `UPDATE … WHERE version = N` / `INSERT … ON CONFLICT DO NOTHING`; slot-count limit under a per-player `pg_advisory_xact_lock` |
+| Experiment assignment | `sha256` buckets for traffic and weighted variant; first assignment stored in `experiment_exposures` (cached in Redis) so it never changes |
+| Config publishing | Per-environment `pg_advisory_xact_lock` serializes manual and scheduled publishes |
+| Scheduled publishes | Worker locks one due row with `FOR UPDATE SKIP LOCKED` and publishes in the same transaction that marks it done |
+| Webhooks | Transactional outbox (`webhook_deliveries`) written with the change; worker delivers with exponential backoff, `SKIP LOCKED` |
 | Rate limiting | Redis fixed window, per client key + IP, per server key, per player |
 
 ## SDKs

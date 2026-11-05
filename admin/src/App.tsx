@@ -14,6 +14,8 @@ import { ProjectsPage } from "./pages/Projects";
 import { AuditPage } from "./pages/Audit";
 import { UsersPage } from "./pages/Users";
 import { SignInPage } from "./pages/SignIn";
+import { ExperimentsPage } from "./pages/Experiments";
+import { WebhooksPage } from "./pages/Webhooks";
 import { MeProvider } from "./api/auth";
 
 export function App() {
@@ -60,6 +62,8 @@ export function App() {
           <Route path="players" element={<PlayersPage />} />
           <Route path="keys" element={<ApiKeysPage />} />
           <Route path="sign-in" element={<SignInPage />} />
+          <Route path="experiments" element={<ExperimentsPage />} />
+          <Route path="webhooks" element={<WebhooksPage />} />
         </Route>
         <Route path="users" element={<UsersPage />} />
         <Route path="audit" element={<AuditPage />} />

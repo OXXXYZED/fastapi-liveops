@@ -17,11 +17,13 @@ from app.api import (
     config_client,
     health,
     leaderboards,
+    liveops_admin,
     players,
     saves,
 )
 from app.core.config import Settings, get_settings
 from app.db.session import make_engine, make_sessionmaker
+from app.services import worker
 from app.services.identity import default_verifiers
 
 
@@ -45,7 +47,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.http = http
         app.state.identity_verifiers = default_verifiers(http)
         try:
-            yield
+            async with worker.running(
+                app.state.sessionmaker,
+                redis,
+                http,
+                settings.worker_interval_seconds,
+                settings.run_worker,
+            ):
+                yield
         finally:
             await http.aclose()
             await redis.aclose()
@@ -59,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(players.router)
     app.include_router(config_admin.router)
     app.include_router(config_client.router)
+    app.include_router(liveops_admin.router)
     app.include_router(leaderboards.admin)
     app.include_router(leaderboards.client)
     app.include_router(saves.client)

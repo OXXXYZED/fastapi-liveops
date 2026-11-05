@@ -284,4 +284,25 @@ void main() {
     await c.unlinkIdentity('google');
     expect(fake.requests[3].method, 'DELETE');
   });
+
+  test('experiments and track', () async {
+    final c = make();
+    fake.login().enqueue(200, {
+      'version': 1,
+      'values': {'price': 5},
+      'flags': {},
+      'experiments': {'shop': 'cheap'}
+    });
+    final cfg = await c.fetchConfig();
+    expect(cfg.variant('shop'), 'cheap');
+    expect(cfg.variant('other'), isNull);
+
+    fake.enqueue(202, {'accepted': 1});
+    await c.track('level_complete', {'level': 3});
+    final body = jsonDecode(fake.requests[2].body) as Map<String, dynamic>;
+    final e = (body['events'] as List<dynamic>).single as Map<String, dynamic>;
+    expect(e['name'], 'level_complete');
+    expect(e['properties'], {'level': 3});
+    expect(e['ts'], '2026-01-01T00:00:00.000Z');
+  });
 }

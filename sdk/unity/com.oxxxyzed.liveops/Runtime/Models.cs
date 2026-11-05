@@ -18,10 +18,16 @@ namespace LiveOps
         [JsonProperty("version")] public int Version;
         [JsonProperty("values")] public JObject Values = new JObject();
         [JsonProperty("flags")] public Dictionary<string, bool> Flags = new Dictionary<string, bool>();
+        /// <summary>Experiment key → assigned variant. Variant overrides are already merged into Values.</summary>
+        [JsonProperty("experiments")] public Dictionary<string, string> Experiments = new Dictionary<string, string>();
 
         public static readonly RemoteConfig Empty = new RemoteConfig();
 
         public bool IsEnabled(string flag) => Flags.TryGetValue(flag, out var on) && on;
+
+        /// <summary>Assigned variant, or null if the player isn't enrolled.</summary>
+        public string GetVariant(string experiment) =>
+            Experiments != null && Experiments.TryGetValue(experiment, out var v) ? v : null;
 
         /// <summary>
         /// Reads a value by key; dots address nested objects ("shop.discount").
@@ -52,6 +58,14 @@ namespace LiveOps
         [JsonProperty("player_id")] public string PlayerId;
         [JsonProperty("score")] public long Score;
         [JsonProperty("display_name")] public string DisplayName;
+    }
+
+    public sealed class AnalyticsEvent
+    {
+        public string Name;
+        public Dictionary<string, object> Properties;
+        /// <summary>Client time; defaults to now (UTC).</summary>
+        public DateTime? Timestamp;
     }
 
     public sealed class LinkedIdentity

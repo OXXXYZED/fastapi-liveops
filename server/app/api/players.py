@@ -18,6 +18,7 @@ from app.api.schemas import (
 )
 from app.core.security import PlayerClaims, issue_player_token
 from app.models import Environment, Player, PlayerIdentity
+from app.services import events
 from app.services.identity import (
     IdentityError,
     ProviderNotConfigured,
@@ -64,6 +65,10 @@ async def login_anonymous(
         )
         row = (await db.execute(stmt)).one()
         player_id, created = row[0], bool(row[1])
+    if created:
+        await events.emit(
+            db, env_id, "player.created", {"player_id": str(player_id), "via": "anonymous"}
+        )
     await db.commit()
     return _token(settings, player_id, env_id, created)
 
@@ -127,6 +132,9 @@ async def login_provider(
                 subject=ident.subject,
                 email=ident.email,
             )
+        )
+        await events.emit(
+            db, env_id, "player.created", {"player_id": str(player.id), "via": provider}
         )
         try:
             await db.commit()

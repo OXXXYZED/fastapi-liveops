@@ -1,12 +1,13 @@
 import hashlib
 import json
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request, Response, status
 
 from app.api.deps import DbDep, PlayerDep, RedisDep
-from app.api.schemas import ClientConfigOut
+from app.api.schemas import ClientConfigOut, EventBatch, EventsAccepted
+from app.services import events, experiments, remote_config
 from app.services import flags as flag_eval
-from app.services import remote_config
 
 router = APIRouter(prefix="/v1", tags=["remote config"])
 
@@ -28,9 +29,14 @@ async def get_config(
     attrs = {k: v[:128] for k, v in list(request.query_params.items())[:_MAX_ATTRS]}
     snap = await remote_config.load_snapshot(db, redis, claims.environment_id)
     pid = str(claims.player_id)
+    exps = snap.get("experiments", [])
+    assigned = await experiments.assign(
+        db, redis, claims.environment_id, exps, claims.player_id, attrs
+    )
     out = ClientConfigOut(
         version=snap["version"],
-        values=snap["values"],
+        values=experiments.apply(snap["values"], exps, assigned),
+        experiments=assigned,
         flags={
             f["key"]: flag_eval.evaluate(
                 key=f["key"],
@@ -50,3 +56,26 @@ async def get_config(
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     return Response(content=body, media_type="application/json", headers=headers)
+
+
+@router.post("/events", response_model=EventsAccepted, status_code=status.HTTP_202_ACCEPTED)
+async def track_events(body: EventBatch, claims: PlayerDep, db: DbDep) -> EventsAccepted:
+    """Analytics events from the game client, forwarded to `player.event` webhooks."""
+    now = datetime.now(UTC)
+    hooks = 0
+    for e in body.events:
+        hooks = await events.emit(
+            db,
+            claims.environment_id,
+            "player.event",
+            {
+                "player_id": str(claims.player_id),
+                "name": e.name,
+                "properties": e.properties,
+                "ts": (e.ts or now).isoformat(),
+            },
+        )
+        if hooks == 0:
+            break  # nobody subscribed; don't keep querying
+    await db.commit()
+    return EventsAccepted(accepted=len(body.events))

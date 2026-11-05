@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # Comma-separated origins allowed to call the API from browsers (e.g. a separately hosted UI).
     cors_origins: str = ""
 
+    # Background worker (scheduled publishes, webhook delivery) inside each API process.
+    run_worker: bool = True
+    worker_interval_seconds: float = 5.0
+
     cloud_save_max_bytes: int = 256 * 1024
     cloud_save_max_slots: int = 10
 

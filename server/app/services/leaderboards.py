@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Leaderboard, LeaderboardScore, ResetSchedule, SortOrder, UpdateMode
+from app.services import events
 
 # ZSET scores are IEEE doubles: integers are exact only up to 2^53.
 MAX_ABS_SCORE = 2**53
@@ -95,6 +96,18 @@ async def submit(
         if ttl := _SEASON_TTL.get(board.reset_schedule):
             pipe.expire(key, int(ttl.total_seconds()))
         await pipe.execute()
+    await events.emit(
+        db,
+        board.environment_id,
+        "leaderboard.score",
+        {
+            "leaderboard": board.key,
+            "season": season,
+            "player_id": str(player_id),
+            "submitted": score,
+            "score": stored,
+        },
+    )
     await db.commit()
     return season, stored
 

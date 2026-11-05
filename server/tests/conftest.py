@@ -15,7 +15,9 @@ ADMIN = {"Authorization": "Bearer test-admin"}
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(admin_token="test-admin", jwt_secret="test-secret-" + "x" * 32)
+    return Settings(
+        admin_token="test-admin", jwt_secret="test-secret-" + "x" * 32, run_worker=False
+    )
 
 
 @pytest.fixture

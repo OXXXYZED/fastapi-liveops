@@ -2,9 +2,18 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models import AdminRole, ApiKeyKind, ResetSchedule, SortOrder, UpdateMode
+from app.models import (
+    AdminRole,
+    ApiKeyKind,
+    DeliveryStatus,
+    ExperimentStatus,
+    ResetSchedule,
+    ScheduleStatus,
+    SortOrder,
+    UpdateMode,
+)
 from app.services.flags import Condition
 
 SLUG = r"^[a-z0-9][a-z0-9-]{0,63}$"
@@ -125,6 +134,9 @@ class ClientConfigOut(BaseModel):
     version: int
     values: dict[str, Any]
     flags: dict[str, bool]
+    experiments: dict[str, str] = Field(
+        default_factory=dict, description="Experiment key → assigned variant"
+    )
 
 
 # --- Leaderboards ---
@@ -332,3 +344,126 @@ class AuthProviders(BaseModel):
     google: GoogleConfig = Field(default_factory=GoogleConfig)
     apple: AppleConfig = Field(default_factory=AppleConfig)
     steam: SteamConfig = Field(default_factory=SteamConfig)
+
+
+# --- Scheduling, experiments, webhooks, events ---
+
+
+class ScheduleCreate(BaseModel):
+    values: dict[str, Any]
+    note: str | None = Field(default=None, max_length=500)
+    publish_at: datetime = Field(description="When to publish (timezone-aware)")
+
+    @model_validator(mode="after")
+    def _aware(self) -> "ScheduleCreate":
+        if self.publish_at.tzinfo is None:
+            raise ValueError("publish_at must include a timezone")
+        return self
+
+
+class ScheduleOut(ORM):
+    id: uuid.UUID
+    values: dict[str, Any]
+    note: str | None
+    publish_at: datetime
+    status: ScheduleStatus
+    published_version: int | None
+    error: str | None
+    created_by: str
+    created_at: datetime
+
+
+class Variant(BaseModel):
+    key: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
+    weight: int = Field(ge=1, le=10_000)
+    overrides: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExperimentWrite(BaseModel):
+    description: str | None = Field(default=None, max_length=500)
+    traffic_percent: int = Field(default=100, ge=0, le=100)
+    rules: list[Condition] = Field(default_factory=list, max_length=20)
+    variants: list[Variant] = Field(min_length=2, max_length=10)
+
+    @model_validator(mode="after")
+    def _unique(self) -> "ExperimentWrite":
+        keys = [v.key for v in self.variants]
+        if len(set(keys)) != len(keys):
+            raise ValueError("variant keys must be unique")
+        return self
+
+
+class ExperimentOut(ORM):
+    key: str
+    description: str | None
+    status: ExperimentStatus
+    traffic_percent: int
+    rules: list[Condition]
+    variants: list[Variant]
+    started_at: datetime | None
+    stopped_at: datetime | None
+    created_at: datetime
+
+
+class ExperimentResults(BaseModel):
+    key: str
+    exposures: dict[str, int]
+    total: int
+
+
+class WebhookCreate(BaseModel):
+    url: str = Field(pattern=r"^https?://", max_length=2000)
+    events: list[str] = Field(min_length=1, max_length=20)
+
+    @model_validator(mode="after")
+    def _known(self) -> "WebhookCreate":
+        from app.services.events import EVENT_TYPES
+
+        unknown = set(self.events) - set(EVENT_TYPES) - {"*"}
+        if unknown:
+            raise ValueError(f"unknown events: {sorted(unknown)}")
+        return self
+
+
+class WebhookUpdate(BaseModel):
+    url: str | None = Field(default=None, pattern=r"^https?://", max_length=2000)
+    events: list[str] | None = Field(default=None, min_length=1, max_length=20)
+    active: bool | None = None
+
+
+class WebhookOut(ORM):
+    id: uuid.UUID
+    url: str
+    events: list[str]
+    active: bool
+    created_at: datetime
+
+
+class WebhookCreated(WebhookOut):
+    secret: str = Field(description="Signing secret. Shown only once.")
+
+
+class DeliveryOut(ORM):
+    id: uuid.UUID
+    event: str
+    status: DeliveryStatus
+    attempts: int
+    next_attempt_at: datetime
+    last_error: str | None
+    created_at: datetime
+
+
+class ClientEvent(BaseModel):
+    name: str = Field(pattern=r"^[a-zA-Z0-9_.:-]{1,64}$")
+    properties: dict[str, Any] = Field(default_factory=dict)
+    ts: datetime | None = Field(
+        default=None, description="Client timestamp; server time if omitted"
+    )
+
+
+class EventBatch(BaseModel):
+    events: list[ClientEvent] = Field(min_length=1, max_length=50)
+
+
+class EventsAccepted(BaseModel):
+    accepted: int

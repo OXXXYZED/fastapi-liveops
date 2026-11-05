@@ -9,7 +9,9 @@ Runs on Postgres + Redis; one `docker compose up` to start.
 
 | | |
 |---|---|
-| **Remote config** | Versioned JSON per environment, optimistic publishing, one-click rollback, ETag caching |
+| **Remote config** | Versioned JSON per environment, optimistic publishing, one-click rollback, scheduled publishes, ETag caching |
+| **A/B experiments** | Weighted, sticky variants that override config, traffic %, targeting, exposure counts |
+| **Analytics hooks** | Signed webhooks with retries for player events, exposures, scores and publishes |
 | **Feature flags** | Targeting rules (`eq`, `in`, numeric, semver…), stable percentage rollouts |
 | **Leaderboards** | Higher/lower-is-better, best/latest/sum, daily/weekly/monthly seasons, around-me, anti-cheat bounds |
 | **Cloud save** | JSON slots with version-based conflict detection and size/slot limits |
@@ -100,6 +102,18 @@ curl 'localhost:8000/v1/config?platform=ios&app_version=1.4.0' -H "Authorization
 - Provider config (Google client IDs, Apple bundle/services IDs, Steam app ID + publisher key) is per
   environment: admin UI → *Player sign-in*.
 
+### Experiments, scheduling & webhooks
+
+- **Experiments**: variants with weights and config `overrides` (deep-merged into `values`), traffic %,
+  targeting rules. Assignment is deterministic and **sticky** — the first variant is persisted, so
+  changing weights later only affects new players. `GET /v1/config` returns `experiments: {key: variant}`.
+- **Scheduled publishes**: `POST /admin/environments/{id}/config/schedules` with `publish_at`; a
+  background worker publishes them (safe with many replicas).
+- **Webhooks** for `player.created`, `player.event` (clients send `POST /v1/events`),
+  `experiment.exposure`, `config.published`, `leaderboard.score`. Written to an outbox in the same
+  transaction, delivered with up to 8 retries and signed
+  `X-LiveOps-Signature: t=<unix>,v1=hex(HMAC-SHA256(secret, "<t>.<body>"))`.
+
 ### Leaderboards
 
 `sort_order` `desc`/`asc` · `update_mode` `best`/`latest`/`sum` · `reset_schedule`
@@ -127,6 +141,7 @@ omitted = last write wins. Mismatch → `409` with `current_version`. Limits: 25
 | `LIVEOPS_CLOUD_SAVE_MAX_BYTES` / `_MAX_SLOTS` | `262144` / `10` | |
 | `LIVEOPS_ADMIN_UI_DIR` | set in image | Built admin UI served at `/ui` |
 | `LIVEOPS_CORS_ORIGINS` | empty | Comma-separated, if the UI is hosted elsewhere |
+| `LIVEOPS_RUN_WORKER` / `LIVEOPS_WORKER_INTERVAL_SECONDS` | `true` / `5` | In-process background worker |
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1` | Trusted proxy IPs for `X-Forwarded-For` |
 
 Going to production: **[docs/deployment.md](docs/deployment.md)** (checklist, nginx example,
@@ -145,7 +160,6 @@ end-to-end against a live server, an admin UI browser test and a Docker build.
 
 ## Roadmap
 
-- Scheduled config changes and A/B experiments with analytics hooks
 - Server-side score validation hooks
 
 ## License

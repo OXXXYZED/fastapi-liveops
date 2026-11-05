@@ -58,6 +58,8 @@ public class Bootstrap : MonoBehaviour
         var lives = cfg.Get("lives", 3);
         var discount = cfg.Get("shop.discount", 0f);
         var newShop = cfg.IsEnabled("new_shop");
+        var variant = cfg.GetVariant("shop_price");   // A/B experiment, null if not enrolled
+        _ = LiveOps.TrackAsync("shop_opened", new() { ["variant"] = variant });
     }
 
     class Progress { public int Level; }

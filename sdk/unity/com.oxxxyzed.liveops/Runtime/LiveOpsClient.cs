@@ -151,6 +151,26 @@ namespace LiveOps
         public Task<PlayerProfile> UnlinkIdentityAsync(string provider, CancellationToken ct = default) =>
             PlayerJson<PlayerProfile>("DELETE", "/v1/players/me/identities/" + Escape(provider), null, ct);
 
+        // ---------------- analytics ----------------
+
+        /// <summary>
+        /// Sends analytics events, forwarded server-side to webhooks subscribed to "player.event".
+        /// Up to 50 per call; names are [a-zA-Z0-9_.:-]{1,64}.
+        /// </summary>
+        public Task TrackAsync(IEnumerable<AnalyticsEvent> events, CancellationToken ct = default)
+        {
+            var list = events.Select(e => new Dictionary<string, object>
+            {
+                ["name"] = e.Name,
+                ["properties"] = e.Properties ?? new Dictionary<string, object>(),
+                ["ts"] = (e.Timestamp ?? _o.UtcNow()).ToString("o", CultureInfo.InvariantCulture),
+            }).ToList();
+            return PlayerJson<object>("POST", "/v1/events", new Dictionary<string, object> { ["events"] = list }, ct);
+        }
+
+        public Task TrackAsync(string name, Dictionary<string, object> properties = null, CancellationToken ct = default) =>
+            TrackAsync(new[] { new AnalyticsEvent { Name = name, Properties = properties } }, ct);
+
         // ---------------- remote config ----------------
 
         /// <summary>

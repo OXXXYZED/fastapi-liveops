@@ -62,6 +62,41 @@ try {
   await page.getByRole("button", { name: "Roll back to this version" }).click();
   await page.getByText("Rolled back — now v3").waitFor();
 
+  step("schedule a publish");
+  await page.getByLabel("Config JSON").fill('{"event": "halloween"}');
+  await page.getByRole("button", { name: "Schedule…" }).click();
+  await page.getByRole("button", { name: "Schedule", exact: true }).click();
+  await page.getByText(/Scheduled for/).first().waitFor();
+  await page.getByRole("heading", { name: "Scheduled" }).waitFor();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByText("Schedule cancelled").waitFor();
+
+  step("create and start an experiment");
+  await page.getByRole("link", { name: "Experiments" }).click();
+  await page.getByRole("button", { name: "New experiment" }).click();
+  await page.getByRole("dialog").getByRole("textbox", { name: /^Key/ }).fill("shop_price");
+  await page.getByLabel("Overrides for treatment").fill('{"shop": {"discount": 0.5}}');
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByText("Experiment created").waitFor();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Start" }).click();
+  await page.getByText("shop_price running").waitFor();
+  await shot("experiments");
+
+  step("add a webhook");
+  await page.getByRole("link", { name: "Webhooks" }).click();
+  await page.getByRole("button", { name: "Add webhook" }).click();
+  await page.getByLabel("Endpoint URL").fill("https://hooks.example.com/liveops");
+  await page.getByRole("button", { name: "Create" }).click();
+  const whsec = (await page.locator(".secret").innerText()).trim();
+  if (!whsec.startsWith("whsec_")) throw new Error(`unexpected secret ${whsec}`);
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Deliveries" }).click();
+  await page.getByRole("heading", { name: "Recent deliveries" }).waitFor();
+  await page.keyboard.press("Escape");
+  await shot("webhooks");
+
   step("create flag with rule");
   await page.getByRole("link", { name: "Feature flags" }).click();
   await page.getByRole("button", { name: "New flag" }).click();

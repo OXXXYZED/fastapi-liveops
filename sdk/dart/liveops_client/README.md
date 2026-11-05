@@ -32,6 +32,8 @@ await liveops.fetchConfig();                // never throws on network errors
 final lives = liveops.config.get('lives', 3);
 final discount = liveops.config.get('shop.discount', 0.0);
 if (liveops.config.isEnabled('new_shop')) { /* ... */ }
+final variant = liveops.config.variant('shop_price');   // A/B experiment
+await liveops.track('shop_opened', {'variant': variant});
 
 await liveops.leaderboards.submitScore('main', 1200);
 final top = await liveops.leaderboards.getTop('main', limit: 20);

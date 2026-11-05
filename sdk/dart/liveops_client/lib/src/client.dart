@@ -149,6 +149,26 @@ class LiveOpsClient {
       await _playerJson('DELETE', '/v1/players/me/identities/${Uri.encodeComponent(provider)}')
           as Map<String, dynamic>);
 
+  // ---------------- analytics ----------------
+
+  /// Sends analytics events (up to 50), forwarded server-side to webhooks subscribed to
+  /// `player.event`. Names match `[a-zA-Z0-9_.:-]{1,64}`.
+  Future<void> track(String name, [Map<String, Object?> properties = const {}]) =>
+      trackAll([AnalyticsEvent(name, properties)]);
+
+  Future<void> trackAll(List<AnalyticsEvent> events) async {
+    await _playerJson('POST', '/v1/events', body: {
+      'events': [
+        for (final e in events)
+          {
+            'name': e.name,
+            'properties': e.properties,
+            'ts': (e.timestamp ?? _now()).toUtc().toIso8601String(),
+          }
+      ]
+    });
+  }
+
   // ---------------- remote config ----------------
 
   /// Fetches config + evaluated flags with ETag caching. When the server is unreachable,

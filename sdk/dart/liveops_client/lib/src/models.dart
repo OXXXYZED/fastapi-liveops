@@ -16,7 +16,14 @@ class RemoteConfig {
   final Map<String, dynamic> values;
   final Map<String, bool> flags;
 
-  const RemoteConfig({this.version = 0, this.values = const {}, this.flags = const {}});
+  /// Experiment key → assigned variant. Variant overrides are already merged into [values].
+  final Map<String, String> experiments;
+
+  const RemoteConfig(
+      {this.version = 0,
+      this.values = const {},
+      this.flags = const {},
+      this.experiments = const {}});
 
   static const empty = RemoteConfig();
 
@@ -25,9 +32,14 @@ class RemoteConfig {
         values: (j['values'] as Map<String, dynamic>?) ?? const {},
         flags: ((j['flags'] as Map<String, dynamic>?) ?? const {})
             .map((k, v) => MapEntry(k, v == true)),
+        experiments: ((j['experiments'] as Map<String, dynamic>?) ?? const {})
+            .map((k, v) => MapEntry(k, v.toString())),
       );
 
   bool isEnabled(String flag) => flags[flag] ?? false;
+
+  /// Assigned variant, or null if the player isn't enrolled.
+  String? variant(String experiment) => experiments[experiment];
 
   /// Reads a value by key; dots address nested objects (`shop.discount`).
   /// Returns [fallback] if missing or of a different type. Ints widen to double.
@@ -147,4 +159,14 @@ class SaveData extends SaveInfo {
   SaveData.fromJson(super.j)
       : data = j['data'],
         super.fromJson();
+}
+
+class AnalyticsEvent {
+  final String name;
+  final Map<String, Object?> properties;
+
+  /// Client time; defaults to now.
+  final DateTime? timestamp;
+
+  const AnalyticsEvent(this.name, [this.properties = const {}, this.timestamp]);
 }

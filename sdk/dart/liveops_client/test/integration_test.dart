@@ -29,6 +29,8 @@ void main() {
     expect(me.playerId, login.playerId);
     expect(me.displayName, 'Dart Tester');
 
+    await c.track('it_event', {'n': 1});
+
     final saved = await c.cloudSave.save('main', {'gold': 5}, expectedVersion: 0);
     await expectLater(
         c.cloudSave.save('main', 1, expectedVersion: 0), throwsA(isA<SaveConflictException>()));

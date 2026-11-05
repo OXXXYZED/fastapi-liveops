@@ -70,6 +70,15 @@ server {
 Redis must not evict keys (`noeviction` or a large enough `maxmemory`): evicted leaderboard
 indexes are rebuilt from Postgres, but evicted rate-limit counters reset early.
 
+## Background worker
+
+Every API process runs a small worker loop (scheduled publishes, webhook delivery). Jobs use
+`SKIP LOCKED`, so running it in all replicas is safe. To isolate it, set `LIVEOPS_RUN_WORKER=false`
+on API replicas and run one extra replica with it enabled.
+
+Webhook URLs are configured by admins (editor role) and requested from the server: if your server
+can reach internal services, restrict outbound traffic at the network level.
+
 ## Scaling notes
 
 - The API is stateless — scale horizontally behind a load balancer.

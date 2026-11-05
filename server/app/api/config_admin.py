@@ -3,9 +3,8 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import DbDep, RedisDep, require_admin
+from app.api.deps import AdminDep, DbDep, RedisDep, require_admin
 from app.api.schemas import (
     FLAG_KEY,
     ConfigPublish,
@@ -33,34 +32,15 @@ async def _env(db: DbDep, environment_id: uuid.UUID) -> Environment:
     return env
 
 
-async def _live_version(db: DbDep, environment_id: uuid.UUID) -> int:
-    v = await db.scalar(
-        select(func.max(ConfigVersion.version)).where(
-            ConfigVersion.environment_id == environment_id
-        )
-    )
-    return int(v or 0)
-
-
 async def _publish(
-    db: DbDep, redis: RedisDep, environment_id: uuid.UUID, body: ConfigPublish
+    db: DbDep, redis: RedisDep, environment_id: uuid.UUID, body: ConfigPublish, actor: str
 ) -> ConfigVersion:
-    live = await _live_version(db, environment_id)
-    if body.base_version is not None and body.base_version != live:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, f"live version is {live}, not {body.base_version}"
-        )
-    row = ConfigVersion(
-        environment_id=environment_id, version=live + 1, values=body.values, note=body.note
-    )
-    db.add(row)
     try:
-        await db.commit()
-    except IntegrityError as exc:  # concurrent publish took the same version number
-        await db.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "concurrent publish, retry") from exc
-    await remote_config.invalidate(redis, environment_id)
-    return row
+        return await remote_config.publish(
+            db, redis, environment_id, body.values, body.note, body.base_version, actor
+        )
+    except remote_config.PublishConflict as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, exc.message) from exc
 
 
 @router.get("/config", response_model=ConfigVersionOut)
@@ -79,10 +59,10 @@ async def get_live_config(environment_id: uuid.UUID, db: DbDep) -> ConfigVersion
 
 @router.post("/config", status_code=status.HTTP_201_CREATED, response_model=ConfigVersionOut)
 async def publish_config(
-    environment_id: uuid.UUID, body: ConfigPublish, db: DbDep, redis: RedisDep
+    environment_id: uuid.UUID, body: ConfigPublish, db: DbDep, redis: RedisDep, admin: AdminDep
 ) -> ConfigVersion:
     await _env(db, environment_id)
-    return await _publish(db, redis, environment_id, body)
+    return await _publish(db, redis, environment_id, body, admin.email)
 
 
 @router.get("/config/versions", response_model=list[ConfigVersionSummary])
@@ -115,12 +95,12 @@ async def get_version(environment_id: uuid.UUID, version: int, db: DbDep) -> Con
     response_model=ConfigVersionOut,
 )
 async def rollback(
-    environment_id: uuid.UUID, version: int, db: DbDep, redis: RedisDep
+    environment_id: uuid.UUID, version: int, db: DbDep, redis: RedisDep, admin: AdminDep
 ) -> ConfigVersion:
     """Publishes a copy of an old version as a new version (history stays append-only)."""
     old = await get_version(environment_id, version, db)
     body = ConfigPublish(values=old.values, note=f"rollback to v{version}")
-    return await _publish(db, redis, environment_id, body)
+    return await _publish(db, redis, environment_id, body, admin.email)
 
 
 @router.get("/flags", response_model=list[FlagOut])

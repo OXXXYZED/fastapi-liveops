@@ -257,3 +257,29 @@ namespace LiveOps.Tests
         }
     }
 }
+
+namespace LiveOps.Tests
+{
+    public class ExperimentAndEventTests
+    {
+        [Fact]
+        public async Task Variants_And_Track()
+        {
+            var t = new FakeTransport();
+            var c = new LiveOpsClient(new LiveOpsOptions { BaseUrl = "https://api.test", ApiKey = "k", Transport = t,
+                UtcNow = () => new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) });
+            t.EnqueueLogin().Enqueue(200, "{\"version\":1,\"values\":{\"price\":5},\"flags\":{},\"experiments\":{\"shop\":\"cheap\"}}");
+            var cfg = await c.FetchConfigAsync();
+            Assert.Equal("cheap", cfg.GetVariant("shop"));
+            Assert.Null(cfg.GetVariant("other"));
+
+            t.Enqueue(202, "{\"accepted\":1}");
+            await c.TrackAsync("level_complete", new Dictionary<string, object> { ["level"] = 3 });
+            var body = Newtonsoft.Json.JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(t.Requests[2].Body,
+                new Newtonsoft.Json.JsonSerializerSettings { DateParseHandling = Newtonsoft.Json.DateParseHandling.None });
+            Assert.Equal("level_complete", (string)body["events"][0]["name"]);
+            Assert.Equal(3, (int)body["events"][0]["properties"]["level"]);
+            Assert.StartsWith("2026-01-01T00:00:00", (string)body["events"][0]["ts"]);
+        }
+    }
+}

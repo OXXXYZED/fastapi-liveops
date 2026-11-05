@@ -46,6 +46,8 @@ namespace LiveOps.Tests
             Assert.Equal(login.PlayerId, me.Me.PlayerId);
             Assert.Equal("Unity Tester", me.Me.DisplayName);
 
+            await c.TrackAsync("it_event", new Dictionary<string, object> { ["n"] = 1 });
+
             var saved = await c.CloudSave.SaveAsync("main", new Dictionary<string, int> { ["gold"] = 5 }, 0);
             await Assert.ThrowsAsync<SaveConflictException>(() => c.CloudSave.SaveAsync("main", 1, 0));
             var loaded = await c.CloudSave.LoadAsync<Dictionary<string, int>>("main");
