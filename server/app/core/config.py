@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
 
+    # Directory with the built admin UI (admin/dist); served at /ui when set.
+    admin_ui_dir: str | None = None
+    # Comma-separated origins allowed to call the API from browsers (e.g. a separately hosted UI).
+    cors_origins: str = ""
+
     cloud_save_max_bytes: int = 256 * 1024
     cloud_save_max_slots: int = 10
 

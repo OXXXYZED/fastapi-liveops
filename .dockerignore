@@ -1,0 +1,13 @@
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/dist
+**/.env
+**/bin
+**/obj
+**/.dart_tool
+**/dump.rdb
+.git

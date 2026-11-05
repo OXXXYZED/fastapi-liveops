@@ -1,8 +1,12 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from redis.asyncio import Redis
 
 from app.api import admin, config_admin, config_client, health, leaderboards, players, saves
@@ -42,7 +46,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(leaderboards.client)
     app.include_router(saves.client)
     app.include_router(saves.admin)
+    if origins := [o.strip() for o in settings.cors_origins.split(",") if o.strip()]:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["ETag", "Retry-After", "X-RateLimit-Limit", "X-RateLimit-Remaining"],
+        )
+    if settings.admin_ui_dir:
+        _mount_ui(app, Path(settings.admin_ui_dir))
     return app
+
+
+def _mount_ui(app: FastAPI, root: Path) -> None:
+    index = root / "index.html"
+    if not index.is_file():
+        raise RuntimeError(f"admin UI not found at {root}")
+    app.mount("/ui/assets", StaticFiles(directory=root / "assets"), name="ui-assets")
+
+    @app.get("/", include_in_schema=False)
+    async def _root() -> RedirectResponse:
+        return RedirectResponse("/ui/")
+
+    # Top-level files (favicon etc.) are whitelisted at startup: no path joins on user input.
+    top_files = {p.name: p for p in root.iterdir() if p.is_file()}
+
+    @app.get("/ui/{path:path}", include_in_schema=False)
+    async def _spa(path: str) -> FileResponse:
+        # Client-side routing: unknown paths fall back to index.html.
+        return FileResponse(top_files.get(path, index))
 
 
 app = create_app()

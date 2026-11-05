@@ -21,7 +21,7 @@ services:
       retries: 20
 
   server:
-    build: ./server
+    build: .
     environment:
       LIVEOPS_DATABASE_URL: postgresql+asyncpg://liveops:liveops@postgres:5432/liveops
       LIVEOPS_REDIS_URL: redis://redis:6379/0

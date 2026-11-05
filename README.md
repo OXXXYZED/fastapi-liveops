@@ -2,7 +2,7 @@
 
 Self-hosted LiveOps backend for games — an open-source alternative to hosted game services.
 
-**Status:** early development (stage 6 — Flutter/Dart SDK).
+**Status:** early development (stage 7 — admin UI).
 
 ## Planned features
 
@@ -20,7 +20,7 @@ docker compose up --build
 curl localhost:8000/readyz
 ```
 
-OpenAPI docs: http://localhost:8000/docs
+Admin UI: http://localhost:8000/ui (token `dev-admin-token`) · OpenAPI docs: http://localhost:8000/docs
 
 ## Core concepts
 
@@ -97,6 +97,17 @@ curl -XPUT localhost:8000/admin/environments/$ENV_ID/flags/new_shop -H 'Authoriz
 
 Both SDKs are tested end-to-end against a live server in CI.
 
+## Admin UI
+
+React + TypeScript app in [`admin/`](admin), bundled into the Docker image and served at `/ui`.
+Manage projects, environments and API keys; edit and publish remote config with history and rollback;
+create feature flags with targeting rules; browse leaderboards and remove scores; look up players and their saves.
+
+```bash
+cd admin && npm ci && npm run dev    # http://localhost:5173/ui, proxies API to :8000
+npm run gen:api                      # regenerate typed client after server API changes
+```
+
 ## Configuration
 
 | Variable | Default | Notes |
@@ -107,6 +118,8 @@ Both SDKs are tested end-to-end against a live server in CI.
 | `LIVEOPS_ADMIN_TOKEN` | `dev-admin-token` | |
 | `LIVEOPS_JWT_SECRET` | dev value | ≥32 bytes recommended |
 | `LIVEOPS_JWT_TTL_SECONDS` | `3600` | |
+| `LIVEOPS_ADMIN_UI_DIR` | unset | Built admin UI to serve at `/ui` (set in the Docker image) |
+| `LIVEOPS_CORS_ORIGINS` | empty | Comma-separated origins, if the UI is hosted elsewhere |
 | `LIVEOPS_RATE_LIMIT_REQUESTS` / `_WINDOW_SECONDS` | `120` / `60` | Fixed window, per API key (+IP) and per player |
 
 ## Development

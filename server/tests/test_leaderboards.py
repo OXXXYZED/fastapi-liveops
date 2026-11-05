@@ -174,3 +174,14 @@ async def test_previous_season_empty(client: AsyncClient, env: dict[str, Any], s
     await _submit(client, h, key, 10)
     page = (await client.get(f"/v1/leaderboards/{key}?season={season}", headers=h)).json()
     assert page["total"] == 0
+
+
+async def test_admin_entries(client: AsyncClient, env: dict[str, Any]) -> None:
+    key = await _board(client, env)
+    for s in (5, 9):
+        _, h = await _player(client, env)
+        await _submit(client, h, key, s)
+    r = await client.get(
+        f"/admin/environments/{env['env']['id']}/leaderboards/{key}/entries", headers=ADMIN
+    )
+    assert [e["score"] for e in r.json()["entries"]] == [9, 5]

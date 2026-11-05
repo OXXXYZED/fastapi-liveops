@@ -194,3 +194,25 @@ async def get_me(
     return MyRank(
         key=key, season=sid, total=await lb.count(redis, board, sid), me=me, around=entries
     )
+
+
+@admin.get("/{key}/entries", response_model=LeaderboardPage)
+async def admin_entries(
+    environment_id: uuid.UUID,
+    key: BoardKey,
+    db: DbDep,
+    redis: RedisDep,
+    season: SeasonQ = "current",
+    offset: Annotated[int, Query(ge=0, le=100_000)] = 0,
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+) -> LeaderboardPage:
+    board = await _board(db, environment_id, key)
+    sid = _season(board, season)
+    await lb.ensure_index(db, redis, board, sid)
+    entries = await lb.top(redis, board, sid, offset, limit)
+    return LeaderboardPage(
+        key=key,
+        season=sid,
+        total=await lb.count(redis, board, sid),
+        entries=[EntryOut(rank=e.rank, player_id=e.player_id, score=e.score) for e in entries],
+    )

@@ -72,3 +72,49 @@ jobs:
           dart test
       - if: failure()
         run: cat /tmp/server.log
+
+  admin:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: {POSTGRES_USER: liveops, POSTGRES_PASSWORD: liveops, POSTGRES_DB: liveops}
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U liveops" --health-interval 2s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: {python-version: "3.13"}
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm, cache-dependency-path: admin/package-lock.json}
+      - working-directory: server
+        run: uv sync --frozen
+      - name: Install, check generated API types, typecheck, build
+        working-directory: admin
+        run: |
+          npm ci --no-audit --no-fund
+          npm run gen:api
+          git diff --exit-code -- openapi.json src/api/schema.d.ts
+          npm run build
+      - name: Start server with UI
+        working-directory: server
+        run: |
+          uv run alembic upgrade head
+          LIVEOPS_ADMIN_UI_DIR=../admin/dist nohup uv run uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
+          for i in $(seq 60); do curl -sf localhost:8000/healthz && break; sleep 1; done
+      - name: E2E smoke test
+        working-directory: admin
+        run: |
+          npm i --no-save --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+          mkdir -p /tmp/shots
+          node e2e/smoke.mjs /tmp/shots
+      - if: failure()
+        run: cat /tmp/server.log
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: {name: admin-screenshots, path: /tmp/shots, if-no-files-found: ignore}

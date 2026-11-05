@@ -214,3 +214,15 @@ class SaveMeta(ORM):
 
 class SaveOut(SaveMeta):
     data: Any
+
+
+class AdminPlayerOut(ORM):
+    id: uuid.UUID
+    device_id: str | None
+    created_at: datetime
+    last_seen_at: datetime
+
+
+class AdminPlayerPage(BaseModel):
+    total: int
+    players: list[AdminPlayerOut]

@@ -1,12 +1,15 @@
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DbDep, require_admin, utcnow
 from app.api.schemas import (
+    AdminPlayerOut,
+    AdminPlayerPage,
     ApiKeyCreate,
     ApiKeyCreated,
     ApiKeyOut,
@@ -16,7 +19,7 @@ from app.api.schemas import (
     ProjectOut,
 )
 from app.core.security import generate_api_key
-from app.models import ApiKey, Environment, Project
+from app.models import ApiKey, Environment, Player, Project
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -131,3 +134,27 @@ async def revoke_api_key(key_id: uuid.UUID, db: DbDep) -> ApiKey:
         key.revoked_at = utcnow()
         await db.commit()
     return key
+
+
+@router.get("/environments/{environment_id}/players", response_model=AdminPlayerPage)
+async def list_players(
+    environment_id: uuid.UUID,
+    db: DbDep,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    q: Annotated[str | None, Query(max_length=128, description="player id or device id")] = None,
+) -> AdminPlayerPage:
+    await _get_environment(db, environment_id)
+    where = [Player.environment_id == environment_id]
+    if q:
+        try:
+            where.append(Player.id == uuid.UUID(q))
+        except ValueError:
+            where.append(Player.device_id == q)
+    total = await db.scalar(select(func.count()).select_from(Player).where(*where))
+    rows = await db.scalars(
+        select(Player).where(*where).order_by(Player.created_at.desc()).offset(offset).limit(limit)
+    )
+    return AdminPlayerPage(
+        total=total or 0, players=[AdminPlayerOut.model_validate(p) for p in rows]
+    )
