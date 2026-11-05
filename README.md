@@ -2,7 +2,7 @@
 
 Self-hosted LiveOps backend for games — an open-source alternative to hosted game services.
 
-**Status:** early development (stage 5 — Unity SDK).
+**Status:** early development (stage 6 — Flutter/Dart SDK).
 
 ## Planned features
 
@@ -93,6 +93,9 @@ curl -XPUT localhost:8000/admin/environments/$ENV_ID/flags/new_shop -H 'Authoriz
 
 - **Unity** — [`sdk/unity/com.oxxxyzed.liveops`](sdk/unity/com.oxxxyzed.liveops/README.md), install via git URL
   `https://github.com/OXXXYZED/fastapi-liveops.git?path=sdk/unity/com.oxxxyzed.liveops`.
+- **Flutter / Dart** — [`sdk/dart/liveops_client`](sdk/dart/liveops_client/README.md), pure Dart, git dependency.
+
+Both SDKs are tested end-to-end against a live server in CI.
 
 ## Configuration
 

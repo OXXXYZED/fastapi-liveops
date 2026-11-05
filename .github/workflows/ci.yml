@@ -28,7 +28,7 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run pytest -q
 
-  sdk-unity:
+  sdks:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -46,6 +46,8 @@ jobs:
         with: {python-version: "3.13"}
       - uses: actions/setup-dotnet@v4
         with: {dotnet-version: "8.0.x"}
+      - uses: dart-lang/setup-dart@v1
+        with: {sdk: stable}
       - name: Check Unity .meta files are up to date
         run: python3 scripts/gen_unity_meta.py && git diff --exit-code && test -z "$(git status --porcelain)"
       - name: Start server
@@ -55,9 +57,18 @@ jobs:
           uv run alembic upgrade head
           nohup uv run uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
           for i in $(seq 60); do curl -sf localhost:8000/healthz && break; sleep 1; done
-      - name: Test SDK (unit + integration)
+      - name: Seed integration environment
+        run: echo "LIVEOPS_TEST_API_KEY=$(scripts/seed_integration.sh http://localhost:8000)" >> "$GITHUB_ENV"
+      - name: Unity SDK (unit + integration)
+        env: {LIVEOPS_TEST_URL: "http://localhost:8000"}
+        run: dotnet test sdk/unity/Tests.DotNet
+      - name: Dart SDK (analyze + unit + integration)
+        env: {LIVEOPS_TEST_URL: "http://localhost:8000"}
+        working-directory: sdk/dart/liveops_client
         run: |
-          export LIVEOPS_TEST_API_KEY=$(scripts/seed_integration.sh http://localhost:8000)
-          LIVEOPS_TEST_URL=http://localhost:8000 dotnet test sdk/unity/Tests.DotNet
+          dart pub get
+          dart format -l 100 --output=none --set-exit-if-changed .
+          dart analyze --fatal-infos
+          dart test
       - if: failure()
         run: cat /tmp/server.log

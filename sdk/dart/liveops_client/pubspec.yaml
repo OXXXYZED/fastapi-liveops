@@ -1,0 +1,14 @@
+name: liveops_client
+description: Dart/Flutter client for fastapi-liveops — player auth, remote config, feature flags, leaderboards, cloud save.
+version: 0.1.0
+repository: https://github.com/OXXXYZED/fastapi-liveops/tree/main/sdk/dart/liveops_client
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+
+dependencies:
+  http: ^1.2.0
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0
