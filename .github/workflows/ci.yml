@@ -118,3 +118,17 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4
         with: {name: admin-screenshots, path: /tmp/shots, if-no-files-found: ignore}
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and boot the compose stack
+        run: |
+          docker compose up -d --build --wait
+          for i in $(seq 60); do curl -sf localhost:8000/readyz && break; sleep 1; done
+          curl -sf localhost:8000/readyz | grep '"status":"ok"'
+          curl -sf localhost:8000/ui/ | grep -q '<div id="root">'
+          curl -sf localhost:8000/admin/projects -H 'Authorization: Bearer dev-admin-token'
+      - if: failure()
+        run: docker compose logs

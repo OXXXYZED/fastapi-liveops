@@ -16,6 +16,9 @@ COPY server/ ./
 COPY --from=admin /admin/dist /app/admin-ui
 RUN useradd -r -u 10001 liveops && chown -R liveops /app
 USER liveops
-ENV PATH="/app/.venv/bin:$PATH" LIVEOPS_ADMIN_UI_DIR=/app/admin-ui
+ENV PATH="/app/.venv/bin:$PATH" LIVEOPS_ADMIN_UI_DIR=/app/admin-ui \
+    FORWARDED_ALLOW_IPS=127.0.0.1 WEB_CONCURRENCY=2
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# FORWARDED_ALLOW_IPS: set to your reverse proxy address(es) so client IPs (used for rate
+# limiting) come from X-Forwarded-For. Uvicorn reads it and WEB_CONCURRENCY from the env.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers"]
