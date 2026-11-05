@@ -222,3 +222,38 @@ namespace LiveOps.Tests
         }
     }
 }
+
+namespace LiveOps.Tests
+{
+    public class ProfileTests
+    {
+        [Fact]
+        public async Task ProviderLogin_Profile_Link()
+        {
+            var t = new FakeTransport();
+            var c = new LiveOpsClient(new LiveOpsOptions { BaseUrl = "https://api.test", ApiKey = "k", Transport = t });
+            t.EnqueueLogin("tg", "p9");
+            var r = await c.LoginWithProviderAsync("google", "id-token");
+            Assert.Equal("p9", c.PlayerId);
+            Assert.Equal("https://api.test/v1/auth/google", t.Requests[0].Url);
+            Assert.Equal("{\"token\":\"id-token\"}", t.Requests[0].Body);
+
+            const string profile = "{\"id\":\"p9\",\"display_name\":\"Neo\",\"created_at\":\"2026-01-01T00:00:00Z\",\"last_seen_at\":\"2026-01-01T00:00:00Z\",\"identities\":[{\"provider\":\"google\",\"email\":\"a@b.c\",\"created_at\":\"2026-01-01T00:00:00Z\"}]}";
+            t.Enqueue(200, profile);
+            var p = await c.SetDisplayNameAsync("Neo");
+            Assert.Equal("PATCH", t.Requests[1].Method);
+            Assert.Equal("Bearer tg", t.Requests[1].Headers["Authorization"]);
+            Assert.Equal("Neo", p.DisplayName);
+            Assert.Equal("google", p.Identities[0].Provider);
+
+            t.Enqueue(409, "{\"detail\":{\"message\":\"account already linked to another player\",\"code\":\"identity_in_use\"}}");
+            var ex = await Assert.ThrowsAsync<LiveOpsException>(() => c.LinkIdentityAsync("apple", "x"));
+            Assert.Equal(409, ex.Status);
+            Assert.EndsWith("/v1/players/me/identities/apple", t.Requests[2].Url);
+
+            t.Enqueue(200, profile);
+            await c.UnlinkIdentityAsync("google");
+            Assert.Equal("DELETE", t.Requests[3].Method);
+        }
+    }
+}

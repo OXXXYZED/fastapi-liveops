@@ -23,8 +23,11 @@ void main() {
     final cfg = await c.fetchConfig();
     expect(identical(await c.fetchConfig(), cfg), isTrue); // 304
 
+    expect((await c.setDisplayName('Dart Tester')).displayName, 'Dart Tester');
     expect((await c.leaderboards.submitScore('it-main', 7)).score, 7);
-    expect((await c.leaderboards.getAroundMe('it-main')).me!.playerId, login.playerId);
+    final me = (await c.leaderboards.getAroundMe('it-main')).me!;
+    expect(me.playerId, login.playerId);
+    expect(me.displayName, 'Dart Tester');
 
     final saved = await c.cloudSave.save('main', {'gold': 5}, expectedVersion: 0);
     await expectLater(

@@ -37,6 +37,10 @@ await liveops.leaderboards.submitScore('main', 1200);
 final top = await liveops.leaderboards.getTop('main', limit: 20);
 final me = await liveops.leaderboards.getAroundMe('main', radius: 3);
 
+// Optional: keep progress across devices.
+// await liveops.linkIdentity('google', googleIdToken);  // or loginWithProvider on a new device
+await liveops.setDisplayName('Neo');
+
 final save = await liveops.cloudSave.load('main');
 try {
   await liveops.cloudSave.save('main', {'level': 4}, expectedVersion: save?.version ?? 0);

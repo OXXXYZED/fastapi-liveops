@@ -5,6 +5,10 @@
 - Admin accounts (scrypt passwords, JWT sessions) with `viewer` / `editor` / `owner` roles,
   last-owner protection, login rate limiting, `python -m app.cli create-admin`.
 - Audit log of all successful admin writes, with UI.
+- Google / Apple (OIDC, JWKS-verified) and Steam (session ticket) sign-in; linking accounts to
+  existing players; per-environment provider config with write-only Steam key.
+- Player display names, returned in leaderboard entries.
+- SDKs: `LoginWithProvider`, `LinkIdentity` / `UnlinkIdentity`, `GetProfile`, `SetDisplayName`.
 
 ## 0.1.0 — 2026-11-05
 

@@ -17,7 +17,7 @@ from app.api.schemas import (
     ScoreSubmit,
     ScoreSubmitted,
 )
-from app.models import Environment, Leaderboard
+from app.models import Environment, Leaderboard, Player
 from app.services import leaderboards as lb
 
 admin = APIRouter(
@@ -59,6 +59,20 @@ def _season(board: Leaderboard, season: str) -> str:
 def _validate_bounds(lo: int | None, hi: int | None) -> None:
     if lo is not None and hi is not None and lo > hi:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "min_score > max_score")
+
+
+async def _named(db: DbDep, entries: list[lb.Entry]) -> list[EntryOut]:
+    ids = [e.player_id for e in entries]
+    names: dict[uuid.UUID, str | None] = {}
+    if ids:
+        rows = await db.execute(select(Player.id, Player.display_name).where(Player.id.in_(ids)))
+        names = {pid: name for pid, name in rows.all()}
+    return [
+        EntryOut(
+            rank=e.rank, player_id=e.player_id, score=e.score, display_name=names.get(e.player_id)
+        )
+        for e in entries
+    ]
 
 
 # --- admin ---
@@ -170,7 +184,7 @@ async def get_top(
         key=key,
         season=sid,
         total=await lb.count(redis, board, sid),
-        entries=[EntryOut(rank=e.rank, player_id=e.player_id, score=e.score) for e in entries],
+        entries=await _named(db, entries),
     )
 
 
@@ -186,10 +200,7 @@ async def get_me(
     board = await _board(db, claims.environment_id, key)
     sid = _season(board, season)
     await lb.ensure_index(db, redis, board, sid)
-    entries = [
-        EntryOut(rank=e.rank, player_id=e.player_id, score=e.score)
-        for e in await lb.around(redis, board, sid, claims.player_id, radius)
-    ]
+    entries = await _named(db, await lb.around(redis, board, sid, claims.player_id, radius))
     me = next((e for e in entries if e.player_id == claims.player_id), None)
     return MyRank(
         key=key, season=sid, total=await lb.count(redis, board, sid), me=me, around=entries
@@ -214,5 +225,5 @@ async def admin_entries(
         key=key,
         season=sid,
         total=await lb.count(redis, board, sid),
-        entries=[EntryOut(rank=e.rank, player_id=e.player_id, score=e.score) for e in entries],
+        entries=await _named(db, entries),
     )

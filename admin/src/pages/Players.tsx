@@ -51,12 +51,12 @@ export function PlayersPage() {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Player id</th><th>Device id</th><th>Created</th><th>Last seen</th><th /></tr>
+                  <tr><th>Player</th><th>Device id</th><th>Created</th><th>Last seen</th><th /></tr>
                 </thead>
                 <tbody>
                   {players.data.players.map((p) => (
                     <tr key={p.id}>
-                      <td className="mono">{p.id}</td>
+                      <td>{p.display_name && <div><strong>{p.display_name}</strong></div>}<div className="mono small">{p.id}</div></td>
                       <td className="mono muted">{p.device_id ?? "—"}</td>
                       <td className="muted">{formatDate(p.created_at)}</td>
                       <td className="muted">{formatDate(p.last_seen_at)}</td>

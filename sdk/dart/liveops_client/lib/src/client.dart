@@ -101,9 +101,16 @@ class LiveOpsClient {
   Future<LoginResult> login() =>
       _loginInFlight ??= _doLogin().whenComplete(() => _loginInFlight = null);
 
-  Future<LoginResult> _doLogin() async {
-    final res = await _send('POST', '/v1/auth/anonymous',
-        headers: {'X-Api-Key': apiKey}, body: jsonEncode({'device_id': await deviceId()}));
+  Future<LoginResult> _doLogin() async =>
+      _apiKeyLogin('/v1/auth/anonymous', {'device_id': await deviceId()});
+
+  /// Signs in with a Google/Apple ID token or a Steam session ticket. Resumes the player that has
+  /// this account linked, or creates a new one. Subsequent calls use this session.
+  Future<LoginResult> loginWithProvider(String provider, String token) =>
+      _apiKeyLogin('/v1/auth/${Uri.encodeComponent(provider)}', {'token': token});
+
+  Future<LoginResult> _apiKeyLogin(String path, Map<String, String> body) async {
+    final res = await _send('POST', path, headers: {'X-Api-Key': apiKey}, body: jsonEncode(body));
     _ensureSuccess(res);
     final r = LoginResult.fromJson(_json(res) as Map<String, dynamic>);
     _token = r.accessToken;
@@ -121,6 +128,26 @@ class LiveOpsClient {
       await store.delete(_k(k));
     }
   }
+
+  // ---------------- profile ----------------
+
+  Future<PlayerProfile> getProfile() async =>
+      PlayerProfile.fromJson(await _playerJson('GET', '/v1/players/me') as Map<String, dynamic>);
+
+  /// 3–24 letters, digits, space, `. _ -`; null clears it.
+  Future<PlayerProfile> setDisplayName(String? name) async => PlayerProfile.fromJson(
+      await _playerJson('PATCH', '/v1/players/me', body: {'display_name': name})
+          as Map<String, dynamic>);
+
+  /// Links a Google/Apple/Steam account to the current player so progress follows it to other
+  /// devices. Throws [LiveOpsException] with status 409 if it belongs to another player.
+  Future<PlayerProfile> linkIdentity(String provider, String token) async => PlayerProfile.fromJson(
+      await _playerJson('POST', '/v1/players/me/identities/${Uri.encodeComponent(provider)}',
+          body: {'token': token}) as Map<String, dynamic>);
+
+  Future<PlayerProfile> unlinkIdentity(String provider) async => PlayerProfile.fromJson(
+      await _playerJson('DELETE', '/v1/players/me/identities/${Uri.encodeComponent(provider)}')
+          as Map<String, dynamic>);
 
   // ---------------- remote config ----------------
 

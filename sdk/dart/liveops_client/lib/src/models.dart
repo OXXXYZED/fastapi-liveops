@@ -47,11 +47,41 @@ class LeaderboardEntry {
   final int rank;
   final String playerId;
   final int score;
+  final String? displayName;
 
   LeaderboardEntry.fromJson(Map<String, dynamic> j)
       : rank = j['rank'] as int,
         playerId = j['player_id'] as String,
-        score = j['score'] as int;
+        score = j['score'] as int,
+        displayName = j['display_name'] as String?;
+}
+
+class LinkedIdentity {
+  final String provider;
+  final String? email;
+  final DateTime createdAt;
+
+  LinkedIdentity.fromJson(Map<String, dynamic> j)
+      : provider = j['provider'] as String,
+        email = j['email'] as String?,
+        createdAt = DateTime.parse(j['created_at'] as String);
+}
+
+class PlayerProfile {
+  final String id;
+  final String? displayName;
+  final DateTime createdAt;
+  final DateTime lastSeenAt;
+  final List<LinkedIdentity> identities;
+
+  PlayerProfile.fromJson(Map<String, dynamic> j)
+      : id = j['id'] as String,
+        displayName = j['display_name'] as String?,
+        createdAt = DateTime.parse(j['created_at'] as String),
+        lastSeenAt = DateTime.parse(j['last_seen_at'] as String),
+        identities = ((j['identities'] as List<dynamic>?) ?? const [])
+            .map((e) => LinkedIdentity.fromJson(e as Map<String, dynamic>))
+            .toList();
 }
 
 List<LeaderboardEntry> _entries(Object? raw) => ((raw as List<dynamic>?) ?? const [])

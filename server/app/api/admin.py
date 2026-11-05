@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -13,6 +13,7 @@ from app.api.schemas import (
     ApiKeyCreate,
     ApiKeyCreated,
     ApiKeyOut,
+    AuthProviders,
     EnvironmentCreate,
     EnvironmentOut,
     ProjectCreate,
@@ -162,3 +163,31 @@ async def list_players(
     return AdminPlayerPage(
         total=total or 0, players=[AdminPlayerOut.model_validate(p) for p in rows]
     )
+
+
+def _masked(raw: dict[str, Any] | None) -> AuthProviders:
+    cfg = AuthProviders.model_validate(raw or {})
+    if cfg.steam.web_api_key:
+        cfg.steam.web_api_key = "••••" + cfg.steam.web_api_key[-4:]
+    return cfg
+
+
+@router.get("/environments/{environment_id}/auth-providers", response_model=AuthProviders)
+async def get_auth_providers(environment_id: uuid.UUID, db: DbDep) -> AuthProviders:
+    return _masked((await _get_environment(db, environment_id)).auth_providers)
+
+
+@router.put("/environments/{environment_id}/auth-providers", response_model=AuthProviders)
+async def put_auth_providers(
+    environment_id: uuid.UUID, body: AuthProviders, db: DbDep
+) -> AuthProviders:
+    """Replaces provider config. Omit `steam.web_api_key` (or send the masked value) to keep it."""
+    env = await _get_environment(db, environment_id)
+    old_key = AuthProviders.model_validate(env.auth_providers or {}).steam.web_api_key
+    new = body.model_dump()
+    key = body.steam.web_api_key
+    if key is None or key.startswith("••••"):
+        new["steam"]["web_api_key"] = old_key
+    env.auth_providers = new
+    await db.commit()
+    return _masked(env.auth_providers)

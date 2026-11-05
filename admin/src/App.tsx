@@ -13,6 +13,7 @@ import { ProjectPage } from "./pages/Project";
 import { ProjectsPage } from "./pages/Projects";
 import { AuditPage } from "./pages/Audit";
 import { UsersPage } from "./pages/Users";
+import { SignInPage } from "./pages/SignIn";
 import { MeProvider } from "./api/auth";
 
 export function App() {
@@ -58,6 +59,7 @@ export function App() {
           <Route path="leaderboards" element={<LeaderboardsPage />} />
           <Route path="players" element={<PlayersPage />} />
           <Route path="keys" element={<ApiKeysPage />} />
+          <Route path="sign-in" element={<SignInPage />} />
         </Route>
         <Route path="users" element={<UsersPage />} />
         <Route path="audit" element={<AuditPage />} />

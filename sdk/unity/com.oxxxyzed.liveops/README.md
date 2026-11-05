@@ -38,6 +38,10 @@ public class Bootstrap : MonoBehaviour
         var top = await LiveOps.Leaderboards.GetTopAsync("main", limit: 20);
         var me = await LiveOps.Leaderboards.GetAroundMeAsync("main", radius: 3);
 
+        // Optional: let the player keep progress across devices.
+        // await LiveOps.LinkIdentityAsync("google", googleIdToken);   // or LoginWithProviderAsync on a new device
+        await LiveOps.SetDisplayNameAsync("Neo");
+
         var save = await LiveOps.CloudSave.LoadAsync<Progress>("main");
         try
         {

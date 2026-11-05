@@ -10,6 +10,7 @@ const SECTIONS = [
   ["leaderboards", "Leaderboards"],
   ["players", "Players & saves"],
   ["keys", "API keys"],
+  ["sign-in", "Player sign-in"],
 ] as const;
 
 export function Layout({ onLogout }: { onLogout: () => void }) {

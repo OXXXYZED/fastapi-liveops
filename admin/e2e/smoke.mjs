@@ -99,12 +99,23 @@ try {
     body: JSON.stringify({ device_id: `e2e-device-${slug}` }),
   })).json();
   const auth = { Authorization: `Bearer ${login.access_token}`, "Content-Type": "application/json" };
+  await fetch(`${base}/v1/players/me`, { method: "PATCH", headers: auth, body: '{"display_name": "E2E Hero"}' });
   await fetch(`${base}/v1/leaderboards/main/scores`, { method: "POST", headers: auth, body: '{"score": 1234}' });
   await fetch(`${base}/v1/saves/main`, { method: "PUT", headers: auth, body: '{"data": {"gold": 42}}' });
 
   await page.reload();
   await page.getByRole("cell", { name: "1,234" }).waitFor();
+  await page.getByText("E2E Hero").waitFor();
   await shot("leaderboard");
+
+  step("configure sign-in providers");
+  await page.getByRole("link", { name: "Player sign-in" }).click();
+  await page.getByLabel("OAuth client IDs").fill("abc.apps.googleusercontent.com");
+  await page.getByLabel("App ID").fill("480");
+  await page.getByLabel("Publisher Web API key").fill("steam-secret-9876");
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByText("Sign-in providers saved").waitFor();
+  if ((await page.getByLabel("Publisher Web API key").inputValue()) !== "••••9876") throw new Error("steam key not masked");
 
   step("inspect player saves");
   await page.getByRole("link", { name: "Players & saves" }).click();

@@ -144,7 +144,7 @@ function BoardView({ envId, board, onDeleted }: { envId: string; board: Leaderbo
                 {entries.data.entries.map((e: Schemas["EntryOut"]) => (
                   <tr key={e.player_id}>
                     <td className="num"><strong>{e.rank}</strong></td>
-                    <td className="mono">{e.player_id}</td>
+                    <td>{e.display_name ? <><strong>{e.display_name}</strong> <span className="mono small muted">{e.player_id.slice(0, 8)}</span></> : <span className="mono">{e.player_id}</span>}</td>
                     <td className="num">{e.score.toLocaleString()}</td>
                     <td className="num">
                       <Button write

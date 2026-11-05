@@ -248,4 +248,40 @@ void main() {
     expect(fake.requests.last.url.query, 'expected_version=1');
     expect(await c.cloudSave.delete('main'), isFalse);
   });
+
+  test('provider login, profile and linking', () async {
+    final c = make();
+    fake.login(token: 'tg', playerId: 'p9');
+    await c.loginWithProvider('google', 'id-token');
+    expect(c.playerId, 'p9');
+    expect(fake.requests[0].url.path, '/v1/auth/google');
+    expect(jsonDecode(fake.requests[0].body), {'token': 'id-token'});
+
+    const profile = {
+      'id': 'p9',
+      'environment_id': 'e',
+      'display_name': 'Neo',
+      'created_at': '2026-01-01T00:00:00Z',
+      'last_seen_at': '2026-01-01T00:00:00Z',
+      'identities': [
+        {'provider': 'google', 'email': 'a@b.c', 'created_at': '2026-01-01T00:00:00Z'}
+      ]
+    };
+    fake.enqueue(200, profile);
+    final p = await c.setDisplayName('Neo');
+    expect(fake.requests[1].method, 'PATCH');
+    expect(fake.requests[1].headers['Authorization'], 'Bearer tg');
+    expect(p.displayName, 'Neo');
+    expect(p.identities.single.provider, 'google');
+
+    fake.enqueue(409, {
+      'detail': {'message': 'account already linked to another player', 'code': 'identity_in_use'}
+    });
+    await expectLater(c.linkIdentity('apple', 'x'),
+        throwsA(isA<LiveOpsException>().having((e) => e.status, 'status', 409)));
+
+    fake.enqueue(200, profile);
+    await c.unlinkIdentity('google');
+    expect(fake.requests[3].method, 'DELETE');
+  });
 }

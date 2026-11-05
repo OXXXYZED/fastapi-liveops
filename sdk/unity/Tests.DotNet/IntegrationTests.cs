@@ -36,10 +36,15 @@ namespace LiveOps.Tests
             Assert.True(cfg.Version >= 0);
             Assert.Same(cfg, await c.FetchConfigAsync()); // 304 path
 
+            var profile = await c.SetDisplayNameAsync("Unity Tester");
+            Assert.Equal("Unity Tester", profile.DisplayName);
+            Assert.Empty(profile.Identities);
+
             var score = await c.Leaderboards.SubmitScoreAsync("it-main", 42);
             Assert.Equal(42, score.Score);
             var me = await c.Leaderboards.GetAroundMeAsync("it-main");
             Assert.Equal(login.PlayerId, me.Me.PlayerId);
+            Assert.Equal("Unity Tester", me.Me.DisplayName);
 
             var saved = await c.CloudSave.SaveAsync("main", new Dictionary<string, int> { ["gold"] = 5 }, 0);
             await Assert.ThrowsAsync<SaveConflictException>(() => c.CloudSave.SaveAsync("main", 1, 0));

@@ -97,7 +97,7 @@ async def test_concurrent_sum_is_consistent(client: AsyncClient, env: dict[str, 
     pid, h = await _player(client, env)
     await asyncio.gather(*[_submit(client, h, key, 1) for _ in range(20)])
     page = (await client.get(f"/v1/leaderboards/{key}", headers=h)).json()
-    assert page["entries"] == [{"rank": 1, "player_id": pid, "score": 20}]
+    assert page["entries"] == [{"rank": 1, "player_id": pid, "score": 20, "display_name": None}]
 
 
 async def test_score_bounds(client: AsyncClient, env: dict[str, Any]) -> None:

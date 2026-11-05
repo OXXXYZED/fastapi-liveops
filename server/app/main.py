@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
@@ -21,6 +22,7 @@ from app.api import (
 )
 from app.core.config import Settings, get_settings
 from app.db.session import make_engine, make_sessionmaker
+from app.services.identity import default_verifiers
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -39,9 +41,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.engine = engine
         app.state.sessionmaker = make_sessionmaker(engine)
         app.state.redis = redis
+        http = httpx.AsyncClient(headers={"User-Agent": "fastapi-liveops"})
+        app.state.http = http
+        app.state.identity_verifiers = default_verifiers(http)
         try:
             yield
         finally:
+            await http.aclose()
             await redis.aclose()
             await engine.dispose()
 

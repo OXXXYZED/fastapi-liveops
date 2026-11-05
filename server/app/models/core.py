@@ -1,8 +1,10 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -39,6 +41,8 @@ class Environment(TimestampMixin, Base):
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(64))
+    # Third-party sign-in config, e.g. {"google": {"client_ids": [...]}}. See app.services.identity.
+    auth_providers: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
 
     project: Mapped[Project] = relationship(back_populates="environments")
 
@@ -73,6 +77,28 @@ class Player(TimestampMixin, Base):
         ForeignKey("environments.id", ondelete="CASCADE"), index=True
     )
     device_id: Mapped[str | None] = mapped_column(String(128))
+    display_name: Mapped[str | None] = mapped_column(String(32))
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class PlayerIdentity(TimestampMixin, Base):
+    """A verified third-party account (Google, Apple, Steam) linked to a player."""
+
+    __tablename__ = "player_identities"
+    __table_args__ = (
+        UniqueConstraint("environment_id", "provider", "subject"),
+        UniqueConstraint("player_id", "provider"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=_uuid)
+    environment_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("environments.id", ondelete="CASCADE")
+    )
+    player_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("players.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(16))
+    subject: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(320))

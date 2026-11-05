@@ -172,6 +172,7 @@ class EntryOut(BaseModel):
     rank: int
     player_id: uuid.UUID
     score: int
+    display_name: str | None = None
 
 
 class LeaderboardPage(BaseModel):
@@ -219,6 +220,7 @@ class SaveOut(SaveMeta):
 class AdminPlayerOut(ORM):
     id: uuid.UUID
     device_id: str | None
+    display_name: str | None
     created_at: datetime
     last_seen_at: datetime
 
@@ -284,3 +286,49 @@ class AuditEntryOut(ORM):
 class AuditPage(BaseModel):
     total: int
     entries: list[AuditEntryOut]
+
+
+# --- Player profile & identities ---
+
+DISPLAY_NAME = r"^[\w][\w .\-]{1,22}[\w]$"
+PROVIDER = r"^(google|apple|steam)$"
+
+
+class ProviderLogin(BaseModel):
+    token: str = Field(min_length=1, max_length=8192, description="ID token or Steam ticket")
+
+
+class IdentityOut(ORM):
+    provider: str
+    email: str | None
+    created_at: datetime
+
+
+class PlayerProfileOut(PlayerOut):
+    display_name: str | None
+    identities: list[IdentityOut]
+
+
+class PlayerUpdate(BaseModel):
+    display_name: str | None = Field(
+        default=None, pattern=DISPLAY_NAME, description="3–24 letters, digits, space, . _ -"
+    )
+
+
+class GoogleConfig(BaseModel):
+    client_ids: list[str] = Field(default_factory=list, max_length=20)
+
+
+class AppleConfig(BaseModel):
+    audiences: list[str] = Field(default_factory=list, max_length=20)
+
+
+class SteamConfig(BaseModel):
+    app_id: int | None = None
+    web_api_key: str | None = Field(default=None, description="Write-only; returned masked")
+
+
+class AuthProviders(BaseModel):
+    google: GoogleConfig = Field(default_factory=GoogleConfig)
+    apple: AppleConfig = Field(default_factory=AppleConfig)
+    steam: SteamConfig = Field(default_factory=SteamConfig)

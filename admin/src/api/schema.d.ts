@@ -90,6 +90,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/environments/{environment_id}/auth-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Auth Providers */
+        get: operations["get_auth_providers_admin_environments__environment_id__auth_providers_get"];
+        /**
+         * Put Auth Providers
+         * @description Replaces provider config. Omit `steam.web_api_key` (or send the masked value) to keep it.
+         */
+        put: operations["put_auth_providers_admin_environments__environment_id__auth_providers_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/environments/{environment_id}/config": {
         parameters: {
             query?: never;
@@ -468,6 +489,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login Provider
+         * @description Sign in with Google / Apple / Steam. Creates a player on first sign-in.
+         */
+        post: operations["login_provider_v1_auth__provider__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/config": {
         parameters: {
             query?: never;
@@ -555,6 +596,28 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /** Update Me */
+        patch: operations["update_me_v1_players_me_patch"];
+        trace?: never;
+    };
+    "/v1/players/me/identities/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link Identity
+         * @description Link a Google / Apple / Steam account so the player can sign in on other devices.
+         */
+        post: operations["link_identity_v1_players_me_identities__provider__post"];
+        /** Unlink Identity */
+        delete: operations["unlink_identity_v1_players_me_identities__provider__delete"];
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -622,6 +685,8 @@ export interface components {
             created_at: string;
             /** Device Id */
             device_id: string | null;
+            /** Display Name */
+            display_name: string | null;
             /**
              * Id
              * Format: uuid
@@ -766,6 +831,11 @@ export interface components {
             /** Revoked At */
             revoked_at: string | null;
         };
+        /** AppleConfig */
+        AppleConfig: {
+            /** Audiences */
+            audiences?: string[];
+        };
         /** AuditEntryOut */
         AuditEntryOut: {
             /** Actor */
@@ -795,6 +865,12 @@ export interface components {
             entries: components["schemas"]["AuditEntryOut"][];
             /** Total */
             total: number;
+        };
+        /** AuthProviders */
+        AuthProviders: {
+            apple?: components["schemas"]["AppleConfig"];
+            google?: components["schemas"]["GoogleConfig"];
+            steam?: components["schemas"]["SteamConfig"];
         };
         /** ClientConfigOut */
         ClientConfigOut: {
@@ -861,6 +937,8 @@ export interface components {
         };
         /** EntryOut */
         EntryOut: {
+            /** Display Name */
+            display_name?: string | null;
             /**
              * Player Id
              * Format: uuid
@@ -936,10 +1014,27 @@ export interface components {
             /** Rules */
             rules?: components["schemas"]["Condition"][];
         };
+        /** GoogleConfig */
+        GoogleConfig: {
+            /** Client Ids */
+            client_ids?: string[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** IdentityOut */
+        IdentityOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Email */
+            email: string | null;
+            /** Provider */
+            provider: string;
         };
         /** LeaderboardCreate */
         LeaderboardCreate: {
@@ -1019,13 +1114,15 @@ export interface components {
          * @enum {string}
          */
         Op: "eq" | "neq" | "in" | "not_in" | "gte" | "lt" | "semver_gte" | "semver_lt";
-        /** PlayerOut */
-        PlayerOut: {
+        /** PlayerProfileOut */
+        PlayerProfileOut: {
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
+            /** Display Name */
+            display_name: string | null;
             /**
              * Environment Id
              * Format: uuid
@@ -1036,11 +1133,21 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Identities */
+            identities: components["schemas"]["IdentityOut"][];
             /**
              * Last Seen At
              * Format: date-time
              */
             last_seen_at: string;
+        };
+        /** PlayerUpdate */
+        PlayerUpdate: {
+            /**
+             * Display Name
+             * @description 3–24 letters, digits, space, . _ -
+             */
+            display_name?: string | null;
         };
         /** ProjectCreate */
         ProjectCreate: {
@@ -1069,6 +1176,14 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+        };
+        /** ProviderLogin */
+        ProviderLogin: {
+            /**
+             * Token
+             * @description ID token or Steam ticket
+             */
+            token: string;
         };
         /**
          * ResetSchedule
@@ -1144,6 +1259,16 @@ export interface components {
          * @enum {string}
          */
         SortOrder: "desc" | "asc";
+        /** SteamConfig */
+        SteamConfig: {
+            /** App Id */
+            app_id?: number | null;
+            /**
+             * Web Api Key
+             * @description Write-only; returned masked
+             */
+            web_api_key?: string | null;
+        };
         /** TokenOut */
         TokenOut: {
             /** Access Token */
@@ -1359,6 +1484,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiKeyCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_auth_providers_admin_environments__environment_id__auth_providers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                environment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthProviders"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_auth_providers_admin_environments__environment_id__auth_providers_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                environment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthProviders"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthProviders"];
                 };
             };
             /** @description Validation Error */
@@ -2309,6 +2500,43 @@ export interface operations {
             };
         };
     };
+    login_provider_v1_auth__provider__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderLogin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_config_v1_config_get: {
         parameters: {
             query?: never;
@@ -2457,7 +2685,106 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlayerOut"];
+                    "application/json": components["schemas"]["PlayerProfileOut"];
+                };
+            };
+        };
+    };
+    update_me_v1_players_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlayerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_identity_v1_players_me_identities__provider__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProviderLogin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_identity_v1_players_me_identities__provider__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

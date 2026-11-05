@@ -51,6 +51,23 @@ namespace LiveOps
         [JsonProperty("rank")] public int Rank;
         [JsonProperty("player_id")] public string PlayerId;
         [JsonProperty("score")] public long Score;
+        [JsonProperty("display_name")] public string DisplayName;
+    }
+
+    public sealed class LinkedIdentity
+    {
+        [JsonProperty("provider")] public string Provider;
+        [JsonProperty("email")] public string Email;
+        [JsonProperty("created_at")] public DateTime CreatedAt;
+    }
+
+    public sealed class PlayerProfile
+    {
+        [JsonProperty("id")] public string Id;
+        [JsonProperty("display_name")] public string DisplayName;
+        [JsonProperty("created_at")] public DateTime CreatedAt;
+        [JsonProperty("last_seen_at")] public DateTime LastSeenAt;
+        [JsonProperty("identities")] public List<LinkedIdentity> Identities = new List<LinkedIdentity>();
     }
 
     public sealed class LeaderboardPage

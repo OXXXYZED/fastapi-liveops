@@ -69,6 +69,17 @@
             ],
             "title": "Device Id"
           },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -83,6 +94,7 @@
         "required": [
           "id",
           "device_id",
+          "display_name",
           "created_at",
           "last_seen_at"
         ],
@@ -417,6 +429,20 @@
         "title": "ApiKeyOut",
         "type": "object"
       },
+      "AppleConfig": {
+        "properties": {
+          "audiences": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Audiences",
+            "type": "array"
+          }
+        },
+        "title": "AppleConfig",
+        "type": "object"
+      },
       "AuditEntryOut": {
         "properties": {
           "actor": {
@@ -484,6 +510,21 @@
           "entries"
         ],
         "title": "AuditPage",
+        "type": "object"
+      },
+      "AuthProviders": {
+        "properties": {
+          "apple": {
+            "$ref": "#/components/schemas/AppleConfig"
+          },
+          "google": {
+            "$ref": "#/components/schemas/GoogleConfig"
+          },
+          "steam": {
+            "$ref": "#/components/schemas/SteamConfig"
+          }
+        },
+        "title": "AuthProviders",
         "type": "object"
       },
       "ClientConfigOut": {
@@ -658,6 +699,17 @@
       },
       "EntryOut": {
         "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "player_id": {
             "format": "uuid",
             "title": "Player Id",
@@ -818,6 +870,20 @@
         "title": "FlagUpsert",
         "type": "object"
       },
+      "GoogleConfig": {
+        "properties": {
+          "client_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Client Ids",
+            "type": "array"
+          }
+        },
+        "title": "GoogleConfig",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -829,6 +895,37 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IdentityOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "email",
+          "created_at"
+        ],
+        "title": "IdentityOut",
         "type": "object"
       },
       "LeaderboardCreate": {
@@ -1080,12 +1177,23 @@
         "title": "Op",
         "type": "string"
       },
-      "PlayerOut": {
+      "PlayerProfileOut": {
         "properties": {
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
           },
           "environment_id": {
             "format": "uuid",
@@ -1097,6 +1205,13 @@
             "title": "Id",
             "type": "string"
           },
+          "identities": {
+            "items": {
+              "$ref": "#/components/schemas/IdentityOut"
+            },
+            "title": "Identities",
+            "type": "array"
+          },
           "last_seen_at": {
             "format": "date-time",
             "title": "Last Seen At",
@@ -1107,9 +1222,30 @@
           "id",
           "environment_id",
           "created_at",
-          "last_seen_at"
+          "last_seen_at",
+          "display_name",
+          "identities"
         ],
-        "title": "PlayerOut",
+        "title": "PlayerProfileOut",
+        "type": "object"
+      },
+      "PlayerUpdate": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "pattern": "^[\\w][\\w .\\-]{1,22}[\\w]$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "3\u201324 letters, digits, space, . _ -",
+            "title": "Display Name"
+          }
+        },
+        "title": "PlayerUpdate",
         "type": "object"
       },
       "ProjectCreate": {
@@ -1176,6 +1312,22 @@
           "environments"
         ],
         "title": "ProjectOut",
+        "type": "object"
+      },
+      "ProviderLogin": {
+        "properties": {
+          "token": {
+            "description": "ID token or Steam ticket",
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "ProviderLogin",
         "type": "object"
       },
       "ResetSchedule": {
@@ -1332,6 +1484,35 @@
         ],
         "title": "SortOrder",
         "type": "string"
+      },
+      "SteamConfig": {
+        "properties": {
+          "app_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Id"
+          },
+          "web_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Write-only; returned masked",
+            "title": "Web Api Key"
+          }
+        },
+        "title": "SteamConfig",
+        "type": "object"
       },
       "TokenOut": {
         "properties": {
@@ -1709,6 +1890,111 @@
           }
         ],
         "summary": "Create Api Key",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/environments/{environment_id}/auth-providers": {
+      "get": {
+        "operationId": "get_auth_providers_admin_environments__environment_id__auth_providers_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "environment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Environment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProviders"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Auth Providers",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "description": "Replaces provider config. Omit `steam.web_api_key` (or send the masked value) to keep it.",
+        "operationId": "put_auth_providers_admin_environments__environment_id__auth_providers_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "environment_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Environment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthProviders"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProviders"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Auth Providers",
         "tags": [
           "admin"
         ]
@@ -3327,6 +3613,76 @@
         ]
       }
     },
+    "/v1/auth/{provider}": {
+      "post": {
+        "description": "Sign in with Google / Apple / Steam. Creates a player on first sign-in.",
+        "operationId": "login_provider_v1_auth__provider__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "pattern": "^(google|apple|steam)$",
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login Provider",
+        "tags": [
+          "players"
+        ]
+      }
+    },
     "/v1/config": {
       "get": {
         "description": "Live config + flags evaluated for the calling player.\n\nTargeting attributes are passed as query params, e.g. `?platform=ios&app_version=1.4.0`.",
@@ -3581,7 +3937,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlayerOut"
+                  "$ref": "#/components/schemas/PlayerProfileOut"
                 }
               }
             },
@@ -3594,6 +3950,155 @@
           }
         ],
         "summary": "Get Me",
+        "tags": [
+          "players"
+        ]
+      },
+      "patch": {
+        "operationId": "update_me_v1_players_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Me",
+        "tags": [
+          "players"
+        ]
+      }
+    },
+    "/v1/players/me/identities/{provider}": {
+      "delete": {
+        "operationId": "unlink_identity_v1_players_me_identities__provider__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "pattern": "^(google|apple|steam)$",
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unlink Identity",
+        "tags": [
+          "players"
+        ]
+      },
+      "post": {
+        "description": "Link a Google / Apple / Steam account so the player can sign in on other devices.",
+        "operationId": "link_identity_v1_players_me_identities__provider__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "pattern": "^(google|apple|steam)$",
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Link Identity",
         "tags": [
           "players"
         ]

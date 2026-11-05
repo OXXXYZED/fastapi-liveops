@@ -85,11 +85,21 @@ namespace LiveOps
             }
         }
 
-        private async Task<LoginResult> DoLoginAsync(CancellationToken ct)
+        private Task<LoginResult> DoLoginAsync(CancellationToken ct) =>
+            ApiKeyLogin("/v1/auth/anonymous", new Dictionary<string, string> { ["device_id"] = DeviceId }, ct);
+
+        /// <summary>
+        /// Signs in with a Google/Apple ID token or a Steam session ticket. Resumes the player that
+        /// has this account linked, or creates a new one. Subsequent calls use this session.
+        /// </summary>
+        public Task<LoginResult> LoginWithProviderAsync(string provider, string token, CancellationToken ct = default) =>
+            ApiKeyLogin("/v1/auth/" + Escape(provider), new Dictionary<string, string> { ["token"] = token }, ct);
+
+        private async Task<LoginResult> ApiKeyLogin(string path, Dictionary<string, string> body, CancellationToken ct)
         {
-            var req = NewRequest("POST", "/v1/auth/anonymous");
+            var req = NewRequest("POST", path);
             req.Headers["X-Api-Key"] = _o.ApiKey;
-            req.Body = JsonConvert.SerializeObject(new Dictionary<string, string> { ["device_id"] = DeviceId });
+            req.Body = JsonConvert.SerializeObject(body);
             var res = await Send(req, ct);
             EnsureSuccess(res);
             var login = JsonConvert.DeserializeObject<LoginResult>(res.Body);
@@ -119,6 +129,27 @@ namespace LiveOps
             _o.Store.Delete(K("token_exp"));
             _o.Store.Delete(K("player_id"));
         }
+
+        // ---------------- profile ----------------
+
+        public Task<PlayerProfile> GetProfileAsync(CancellationToken ct = default) =>
+            PlayerJson<PlayerProfile>("GET", "/v1/players/me", null, ct);
+
+        /// <summary>3–24 letters, digits, space, . _ -; null clears it.</summary>
+        public Task<PlayerProfile> SetDisplayNameAsync(string displayName, CancellationToken ct = default) =>
+            PlayerJson<PlayerProfile>("PATCH", "/v1/players/me",
+                new Dictionary<string, string> { ["display_name"] = displayName }, ct);
+
+        /// <summary>
+        /// Links a Google/Apple/Steam account to the current player so progress follows it to other
+        /// devices. Throws <see cref="LiveOpsException"/> 409 if the account belongs to another player.
+        /// </summary>
+        public Task<PlayerProfile> LinkIdentityAsync(string provider, string token, CancellationToken ct = default) =>
+            PlayerJson<PlayerProfile>("POST", "/v1/players/me/identities/" + Escape(provider),
+                new Dictionary<string, string> { ["token"] = token }, ct);
+
+        public Task<PlayerProfile> UnlinkIdentityAsync(string provider, CancellationToken ct = default) =>
+            PlayerJson<PlayerProfile>("DELETE", "/v1/players/me/identities/" + Escape(provider), null, ct);
 
         // ---------------- remote config ----------------
 

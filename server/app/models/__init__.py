@@ -1,6 +1,6 @@
 from app.models.admin_user import AdminRole, AdminUser, AuditLog
 from app.models.config import ConfigVersion, FeatureFlag
-from app.models.core import ApiKey, ApiKeyKind, Environment, Player, Project
+from app.models.core import ApiKey, ApiKeyKind, Environment, Player, PlayerIdentity, Project
 from app.models.leaderboard import (
     Leaderboard,
     LeaderboardScore,
@@ -23,6 +23,7 @@ __all__ = [
     "Leaderboard",
     "LeaderboardScore",
     "Player",
+    "PlayerIdentity",
     "Project",
     "ResetSchedule",
     "SortOrder",

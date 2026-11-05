@@ -13,7 +13,7 @@ Runs on Postgres + Redis; one `docker compose up` to start.
 | **Feature flags** | Targeting rules (`eq`, `in`, numeric, semver…), stable percentage rollouts |
 | **Leaderboards** | Higher/lower-is-better, best/latest/sum, daily/weekly/monthly seasons, around-me, anti-cheat bounds |
 | **Cloud save** | JSON slots with version-based conflict detection and size/slot limits |
-| **Players** | Anonymous / device-ID login, JWT, per-key and per-player rate limits |
+| **Players** | Anonymous / device-ID login, Google / Apple / Steam sign-in and account linking, display names, JWT, rate limits |
 | **Admin UI** | Manage everything above at `/ui`; admin accounts with viewer/editor/owner roles and an audit log |
 | **SDKs** | Unity (UPM, all platforms incl. WebGL) and Dart/Flutter, with offline config cache |
 
@@ -89,6 +89,17 @@ curl 'localhost:8000/v1/config?platform=ios&app_version=1.4.0' -H "Authorization
 - Operators: `eq`, `neq`, `in`, `not_in`, `gte`, `lt`, `semver_gte`, `semver_lt`.
 - `GET /v1/config` returns `{version, values, flags: {key: bool}}` with an `ETag`; `If-None-Match` → `304`.
 
+### Player accounts
+
+- `POST /v1/auth/anonymous` — device login (always available).
+- `POST /v1/auth/{google|apple|steam}` with `{"token": …}` — Google/Apple ID token or Steam session
+  ticket; resumes the player that has the account linked, or creates one.
+- `POST /v1/players/me/identities/{provider}` links an account to the current (e.g. anonymous) player,
+  so progress follows it to new devices; `409` if it already belongs to another player.
+- `PATCH /v1/players/me` `{"display_name": …}` — shown on leaderboards.
+- Provider config (Google client IDs, Apple bundle/services IDs, Steam app ID + publisher key) is per
+  environment: admin UI → *Player sign-in*.
+
 ### Leaderboards
 
 `sort_order` `desc`/`asc` · `update_mode` `best`/`latest`/`sum` · `reset_schedule`
@@ -134,7 +145,6 @@ end-to-end against a live server, an admin UI browser test and a Docker build.
 
 ## Roadmap
 
-- Account linking (Google / Apple / Steam) and player profiles with display names
 - Scheduled config changes and A/B experiments with analytics hooks
 - Server-side score validation hooks
 
