@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +11,15 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://liveops:liveops@localhost:5432/liveops"
     redis_url: str = "redis://localhost:6379/0"
     log_level: str = "INFO"
+
+    # Static admin token guarding /admin/*. Replace with real admin accounts later.
+    admin_token: SecretStr = SecretStr("dev-admin-token")
+    jwt_secret: SecretStr = SecretStr("dev-jwt-secret-change-me-32-bytes!")
+    jwt_ttl_seconds: int = 3600
+
+    # Fixed-window rate limit for client (game) API, per API key + client IP.
+    rate_limit_requests: int = 120
+    rate_limit_window_seconds: int = 60
 
 
 @lru_cache

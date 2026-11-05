@@ -5,13 +5,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from redis.asyncio import Redis
 
-from app.api import health
+from app.api import admin, health, players
 from app.core.config import Settings, get_settings
 from app.db.session import make_engine, make_sessionmaker
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    if settings.env != "dev":
+        for name in ("admin_token", "jwt_secret"):
+            if getattr(settings, name).get_secret_value().startswith("dev-"):
+                raise RuntimeError(f"LIVEOPS_{name.upper()} must be set outside dev")
     logging.basicConfig(level=settings.log_level)
 
     @asynccontextmanager
@@ -30,6 +34,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="fastapi-liveops", version="0.1.0", lifespan=lifespan)
     app.include_router(health.router)
+    app.include_router(admin.router)
+    app.include_router(players.router)
     return app
 
 
