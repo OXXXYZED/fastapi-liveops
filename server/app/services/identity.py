@@ -43,7 +43,7 @@ class JwksCache:
     def __init__(self, http: httpx.AsyncClient, url: str, ttl: float = 3600) -> None:
         self._http, self._url, self._ttl = http, url, ttl
         self._keys: dict[str, PyJWK] = {}
-        self._fetched = 0.0
+        self._fetched: float | None = None  # monotonic time of the last fetch
 
     async def _refresh(self) -> None:
         r = await self._http.get(self._url, timeout=10)
@@ -57,9 +57,9 @@ class JwksCache:
         self._keys, self._fetched = keys, time.monotonic()
 
     async def get(self, kid: str) -> PyJWK:
-        age = time.monotonic() - self._fetched
+        age = None if self._fetched is None else time.monotonic() - self._fetched
         # Unknown kid may mean key rotation, but refetch at most once a minute for garbage kids.
-        if age > self._ttl or (kid not in self._keys and age > 60):
+        if age is None or age > self._ttl or (kid not in self._keys and age > 60):
             try:
                 await self._refresh()
             except httpx.HTTPError as exc:

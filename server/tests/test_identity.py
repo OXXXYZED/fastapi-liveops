@@ -53,6 +53,13 @@ def _google(http: httpx.AsyncClient) -> OidcVerifier:
     )
 
 
+async def test_first_fetch_does_not_depend_on_uptime(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Regression: a freshly booted host has a small monotonic clock.
+    monkeypatch.setattr(time, "monotonic", lambda: 5.0)
+    v = _google(_jwks_client([]))
+    assert (await v.verify(_id_token(), {"client_ids": ["client-1"]})).subject == "g-123"
+
+
 async def test_oidc_valid_and_cached() -> None:
     calls: list[int] = []
     v = _google(_jwks_client(calls))

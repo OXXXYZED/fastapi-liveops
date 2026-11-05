@@ -55,7 +55,7 @@ jobs:
         run: |
           uv sync --frozen
           uv run alembic upgrade head
-          nohup uv run uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
+          nohup .venv/bin/uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
           for i in $(seq 60); do curl -sf localhost:8000/healthz && break; sleep 1; done
       - name: Seed integration environment
         run: echo "LIVEOPS_TEST_API_KEY=$(scripts/seed_integration.sh http://localhost:8000)" >> "$GITHUB_ENV"
@@ -104,7 +104,7 @@ jobs:
         working-directory: server
         run: |
           uv run alembic upgrade head
-          LIVEOPS_ADMIN_UI_DIR=../admin/dist nohup uv run uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
+          LIVEOPS_ADMIN_UI_DIR=../admin/dist nohup .venv/bin/uvicorn app.main:app --port 8000 > /tmp/server.log 2>&1 &
           for i in $(seq 60); do curl -sf localhost:8000/healthz && break; sleep 1; done
       - name: E2E smoke test
         working-directory: admin
