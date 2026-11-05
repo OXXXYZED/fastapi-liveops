@@ -2,7 +2,7 @@
 
 Self-hosted LiveOps backend for games — an open-source alternative to hosted game services.
 
-**Status:** early development (stage 3 — leaderboards).
+**Status:** early development (stage 4 — cloud save).
 
 ## Planned features
 
@@ -79,6 +79,15 @@ curl -XPUT localhost:8000/admin/environments/$ENV_ID/flags/new_shop -H 'Authoriz
   `GET /v1/leaderboards/{key}/me?radius=5`. `season` accepts `current`, `previous` or an id like `2026-W45`.
 - Admin: CRUD under `/admin/environments/{id}/leaderboards`, plus removing a player's score.
 - Ties are ordered by player id (Redis lexicographic order).
+
+## Cloud save
+
+- Per-player JSON slots: `GET /v1/saves`, `GET|PUT|DELETE /v1/saves/{slot}`.
+- `PUT` body: `{"data": ..., "expected_version": N}` — `0` = create only, `N` = must match the
+  current version, omitted = last write wins. Mismatch → `409` with `current_version`.
+- Limits: `LIVEOPS_CLOUD_SAVE_MAX_BYTES` (256 KiB, encoded JSON) → `413`;
+  `LIVEOPS_CLOUD_SAVE_MAX_SLOTS` (10) → `409`. Put a body-size limit on your reverse proxy too.
+- Admin read/delete for support: `/admin/environments/{env}/players/{player}/saves`.
 
 ## Configuration
 

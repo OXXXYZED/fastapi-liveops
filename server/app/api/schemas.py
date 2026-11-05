@@ -187,3 +187,30 @@ class MyRank(BaseModel):
     total: int
     me: EntryOut | None
     around: list[EntryOut]
+
+
+# --- Cloud save ---
+
+SLOT = r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+
+
+class SaveWrite(BaseModel):
+    data: Any
+    expected_version: int | None = Field(
+        default=None,
+        ge=0,
+        description="Optimistic concurrency: 0 = slot must not exist, "
+        "N = current version must be N, omitted = overwrite unconditionally.",
+    )
+
+
+class SaveMeta(ORM):
+    slot: str
+    version: int
+    size_bytes: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class SaveOut(SaveMeta):
+    data: Any

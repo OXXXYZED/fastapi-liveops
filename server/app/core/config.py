@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 120
     rate_limit_window_seconds: int = 60
 
+    cloud_save_max_bytes: int = 256 * 1024
+    cloud_save_max_slots: int = 10
+
 
 @lru_cache
 def get_settings() -> Settings:

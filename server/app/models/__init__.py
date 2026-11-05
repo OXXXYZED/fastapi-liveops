@@ -7,10 +7,12 @@ from app.models.leaderboard import (
     SortOrder,
     UpdateMode,
 )
+from app.models.save import CloudSave
 
 __all__ = [
     "ApiKey",
     "ApiKeyKind",
+    "CloudSave",
     "ConfigVersion",
     "Environment",
     "FeatureFlag",
