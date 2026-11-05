@@ -59,6 +59,22 @@ async def require_admin(
         raise _unauthorized("invalid admin token")
 
 
+async def _enforce_rate_limit(
+    redis: Redis, settings: Settings, response: Response, bucket: str
+) -> None:
+    allowed, remaining, retry_after = await rate_limit.hit(
+        redis, bucket, settings.rate_limit_requests, settings.rate_limit_window_seconds
+    )
+    response.headers["X-RateLimit-Limit"] = str(settings.rate_limit_requests)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    if not allowed:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="rate limit exceeded",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
 async def require_api_key(
     request: Request,
     response: Response,
@@ -75,18 +91,8 @@ async def require_api_key(
 
     # Client keys are public (shipped in builds) so limit per key + IP; server keys per key.
     ip = request.client.host if request.client else "unknown"
-    bucket = f"{key.id}:{ip}" if key.kind == ApiKeyKind.client else str(key.id)
-    allowed, remaining, retry_after = await rate_limit.hit(
-        redis, bucket, settings.rate_limit_requests, settings.rate_limit_window_seconds
-    )
-    response.headers["X-RateLimit-Limit"] = str(settings.rate_limit_requests)
-    response.headers["X-RateLimit-Remaining"] = str(remaining)
-    if not allowed:
-        raise HTTPException(
-            status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="rate limit exceeded",
-            headers={"Retry-After": str(retry_after)},
-        )
+    bucket = f"k:{key.id}:{ip}" if key.kind == ApiKeyKind.client else f"k:{key.id}"
+    await _enforce_rate_limit(redis, settings, response, bucket)
     return key
 
 
@@ -94,15 +100,19 @@ ApiKeyDep = Annotated[ApiKey, Depends(require_api_key)]
 
 
 async def require_player(
+    response: Response,
     settings: SettingsDep,
+    redis: RedisDep,
     creds: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> PlayerClaims:
     if creds is None:
         raise _unauthorized("missing bearer token")
     try:
-        return decode_player_token(creds.credentials, settings.jwt_secret.get_secret_value())
+        claims = decode_player_token(creds.credentials, settings.jwt_secret.get_secret_value())
     except jwt.InvalidTokenError as exc:
         raise _unauthorized("invalid token") from exc
+    await _enforce_rate_limit(redis, settings, response, f"p:{claims.player_id}")
+    return claims
 
 
 PlayerDep = Annotated[PlayerClaims, Depends(require_player)]

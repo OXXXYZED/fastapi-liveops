@@ -45,7 +45,8 @@ async def get_config(
     )
     body = json.dumps(out.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
     etag = '"' + hashlib.sha256(body.encode()).hexdigest()[:32] + '"'
-    headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
+    headers = {**response.headers, "ETag": etag, "Cache-Control": "private, no-cache"}
+    headers.pop("content-length", None)
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     return Response(content=body, media_type="application/json", headers=headers)

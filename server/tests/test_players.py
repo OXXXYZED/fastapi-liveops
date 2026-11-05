@@ -78,3 +78,12 @@ def test_prod_requires_secrets() -> None:
 
     with pytest.raises(RuntimeError, match="ADMIN_TOKEN"):
         create_app(Settings(env="prod"))
+
+
+async def test_player_rate_limit(client: AsyncClient, env: dict[str, Any], app: FastAPI) -> None:
+    login = (await client.post("/v1/auth/anonymous", json={}, headers=_key(env))).json()
+    headers = {"Authorization": f"Bearer {login['access_token']}"}
+    app.state.settings.rate_limit_requests = 3
+    for _ in range(3):
+        assert (await client.get("/v1/players/me", headers=headers)).status_code == 200
+    assert (await client.get("/v1/players/me", headers=headers)).status_code == 429

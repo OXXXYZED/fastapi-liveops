@@ -40,7 +40,7 @@ async def _get_environment(db: DbDep, environment_id: uuid.UUID) -> Environment:
 @router.post("/projects", status_code=status.HTTP_201_CREATED, response_model=ProjectOut)
 async def create_project(body: ProjectCreate, db: DbDep) -> Project:
     if len(set(body.environments)) != len(body.environments):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "duplicate environment names")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "duplicate environment names")
     project = Project(slug=body.slug, name=body.name)
     project.environments = [Environment(name=n) for n in body.environments]
     db.add(project)

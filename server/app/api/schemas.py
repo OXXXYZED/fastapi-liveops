@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import ApiKeyKind
+from app.models import ApiKeyKind, ResetSchedule, SortOrder, UpdateMode
 from app.services.flags import Condition
 
 SLUG = r"^[a-z0-9][a-z0-9-]{0,63}$"
@@ -125,3 +125,65 @@ class ClientConfigOut(BaseModel):
     version: int
     values: dict[str, Any]
     flags: dict[str, bool]
+
+
+# --- Leaderboards ---
+
+
+class LeaderboardCreate(BaseModel):
+    key: str = Field(pattern=FLAG_KEY)
+    name: str = Field(min_length=1, max_length=200)
+    sort_order: SortOrder = SortOrder.desc
+    update_mode: UpdateMode = UpdateMode.best
+    reset_schedule: ResetSchedule = ResetSchedule.never
+    min_score: int | None = None
+    max_score: int | None = None
+
+
+class LeaderboardUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    min_score: int | None = None
+    max_score: int | None = None
+
+
+class LeaderboardOut(ORM):
+    id: uuid.UUID
+    key: str
+    name: str
+    sort_order: SortOrder
+    update_mode: UpdateMode
+    reset_schedule: ResetSchedule
+    min_score: int | None
+    max_score: int | None
+    created_at: datetime
+
+
+class ScoreSubmit(BaseModel):
+    score: int = Field(ge=-(2**53), le=2**53)
+
+
+class ScoreSubmitted(BaseModel):
+    season: str
+    score: int
+    rank: int
+
+
+class EntryOut(BaseModel):
+    rank: int
+    player_id: uuid.UUID
+    score: int
+
+
+class LeaderboardPage(BaseModel):
+    key: str
+    season: str
+    total: int
+    entries: list[EntryOut]
+
+
+class MyRank(BaseModel):
+    key: str
+    season: str
+    total: int
+    me: EntryOut | None
+    around: list[EntryOut]

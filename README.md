@@ -2,7 +2,7 @@
 
 Self-hosted LiveOps backend for games — an open-source alternative to hosted game services.
 
-**Status:** early development (stage 2 — remote config & feature flags).
+**Status:** early development (stage 3 — leaderboards).
 
 ## Planned features
 
@@ -64,6 +64,22 @@ curl -XPUT localhost:8000/admin/environments/$ENV_ID/flags/new_shop -H 'Authoriz
   -d '{"enabled":true,"rollout_percent":25,"rules":[{"attribute":"app_version","op":"semver_gte","value":"1.4.0"}]}'
 ```
 
+## Leaderboards
+
+| Setting | Values |
+|---|---|
+| `sort_order` | `desc` (higher is better) / `asc` (lower is better, e.g. race times) |
+| `update_mode` | `best` / `latest` / `sum` |
+| `reset_schedule` | `never` / `daily` / `weekly` (ISO weeks) / `monthly`, UTC |
+| `min_score`, `max_score` | Optional server-side bounds; scores are integers within ±2^53 |
+
+- Postgres (`leaderboard_scores`) is the source of truth; Redis sorted sets are an index that is
+  rebuilt automatically if missing. Old seasons expire from Redis but stay queryable.
+- Client: `POST /v1/leaderboards/{key}/scores`, `GET /v1/leaderboards/{key}?offset=&limit=`,
+  `GET /v1/leaderboards/{key}/me?radius=5`. `season` accepts `current`, `previous` or an id like `2026-W45`.
+- Admin: CRUD under `/admin/environments/{id}/leaderboards`, plus removing a player's score.
+- Ties are ordered by player id (Redis lexicographic order).
+
 ## Configuration
 
 | Variable | Default | Notes |
@@ -74,7 +90,7 @@ curl -XPUT localhost:8000/admin/environments/$ENV_ID/flags/new_shop -H 'Authoriz
 | `LIVEOPS_ADMIN_TOKEN` | `dev-admin-token` | |
 | `LIVEOPS_JWT_SECRET` | dev value | ≥32 bytes recommended |
 | `LIVEOPS_JWT_TTL_SECONDS` | `3600` | |
-| `LIVEOPS_RATE_LIMIT_REQUESTS` / `_WINDOW_SECONDS` | `120` / `60` | Fixed window |
+| `LIVEOPS_RATE_LIMIT_REQUESTS` / `_WINDOW_SECONDS` | `120` / `60` | Fixed window, per API key (+IP) and per player |
 
 ## Development
 
