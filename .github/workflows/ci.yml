@@ -1,0 +1,29 @@
+name: CI
+on:
+  push: {branches: [main]}
+  pull_request:
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: server}}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: {POSTGRES_USER: liveops, POSTGRES_PASSWORD: liveops, POSTGRES_DB: liveops}
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U liveops" --health-interval 2s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 2s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: {python-version: "3.13"}
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy app tests
+      - run: uv run alembic upgrade head
+      - run: uv run pytest -q
